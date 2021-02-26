@@ -32,11 +32,38 @@
     call CPU_TIME(time_start)
     call DGESV(N, 1, AIJ, N, IPIV, D, N, INFO ) ! overwrites d
     call CPU_TIME(time_end)
-    write(*,*) 'Using full matrix solver from LAPACK, DGESV.f'
+    write(*,*) 'Using full matrix solver from LAPACK, dgesv.f'
     write(*,*) 'time: ',time_end-time_start
     write(*,*) 'error',dot_product((s-d),(s-d))
     write(*,*) ' '
     
+    aij=0
+    do i=1,n
+     do j=1,n
+      if (ABS(i - j) <= KU ) then  ! regular band
+        aij(i,j)=500+3*i-2*j
+        if (i > j) then
+        aij(i,j)=aij(i,j)+1
+       endif         
+      endif
+      if (ABS(i - j) >= N-KU) then
+       aij(i,j) = 20+i+2*j
+       if (i > j) then
+        aij(i,j)=aij(i,j)*2
+       endif
+      endif
+     end do
+      s(i)=i
+    end do
+    d=matmul(aij,s)
+    call CPU_TIME(time_start)
+    call GaussJordan( N, 1, AIJ, N, D, N, INFO )
+    call CPU_TIME(time_end)
+    write(*,*) 'Using full matrix solver GJ with inverse'
+    write(*,*) 'time: ',time_end-time_start
+    write(*,*) 'error',dot_product((s-d),(s-d))
+    write(*,*) ' '
+            
 !   This is a made up example of a band matrix for testing    
     aij=0
     do i=1,n
@@ -76,7 +103,7 @@
     call CPU_TIME(time_start)
     call DCTSV( n, 1, a, b, c, d, n, INFO ) ! overwrites d into solution
     call CPU_TIME(time_end)
-    write(*,*) 'Using dgtsv.f90'    
+    write(*,*) 'Using dctsv.f90'    
     write(*,*) 'time: ',time_end-time_start
     write(*,*) 'error',dot_product((s-d),(s-d))
     write(*,*) ' '
@@ -87,7 +114,7 @@
     call CPU_TIME(time_start)
     call DCBSV( N, KU, 1, AB, 2*KU+1, d, N, INFO )  ! overwrites d
     call CPU_TIME(time_end)
-    write(*,*) 'Using dgtsv.f90'    
+    write(*,*) 'Using dcbsv.f90'    
     write(*,*) 'time: ',time_end-time_start
     write(*,*) 'error',dot_product((s-d),(s-d))
    
