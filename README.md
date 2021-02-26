@@ -9,11 +9,14 @@ The error rate increases more rapidly with N than an LU decomposition, but is O(
 ## Usage
 
 Two routines are included, dctsv.f90 which solves periodic tridiagonal systems, and dcbsv.f90, which solves general banded periodic matrices.
-They are written to be reasonably easily incorporated into code using [LAPACK (Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd.November 2006)](http://www.netlib.org/lapack/) and the interfaces have been deliberatedly made as compatible as possible with their non-cyclic LAPACK counterparts dgbsv.f and dgtsv.f
+They are written to be reasonably easily incorporated into code using [LAPACK (Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd.November 2006)](http://www.netlib.org/lapack/) and the interfaces have been deliberately made as compatible as possible with their non-cyclic LAPACK counterparts dgbsv.f and dgtsv.f
+Both use XERBLA error reporting and require linking with LAPACK & BLAS. 
 
-Both use XERBLA error reporting. dcbsv.f90 requires linking with lapack and blas. dctsv.f90, with minimal editing to remove XERBLA, can stand alone.  More extensive editing of dgbsv.f90 with substitution of intrinsic Fortran operators instead of BLAS calls and substitution of LAPACK's dgesv.f by another suitable general matrix solver (e.g. the included gauss-jordan.f90) is also reasonably easy.
+Removing XERBLA from dctsv.f90 removes the LAPACK/BLAS dependency, and is provided as dctsv_nolapack.f90
 
-A fortran 90 module lapackinterface.f90 is included for compatibility with FORTRAN 77. Note that the module only needs to be compiled once.
+Substitution of intrinsic Fortran array operators instead of LAPACK & BLAS calls and substitution of LAPACK's dgesv.f  & dgetr(fsi).f by another suitable general matrix solver with inversion (e.g. the included gauss-jordan.f90) is provided as dcbsv_nolapack.f90
+
+A fortran 90 module LapackInterface.f90 is included for compatibility with FORTRAN 77. Note that the module only needs to be compiled once and is only needed for LAPACK/BLAS compatibility.
 
 A simple test program is included, 
 
@@ -25,6 +28,10 @@ gfortran testme.f90 dctsv.f90 dcbsv.f90 gauss-jordan.f90 -llapack -lblas
 or
 
 gfortran testme.f90 LapackInterface.f90 dctsv.f90 dcbsv.f90 gauss-jordan.f90 -llapack -lblas
+
+or (after commenting out dgesv in testme.f90 line 37)
+
+gfortran testme.f90 dctsv.f90 dcbsv.f90 gauss-jordan.f90
 
 ./a.out
 

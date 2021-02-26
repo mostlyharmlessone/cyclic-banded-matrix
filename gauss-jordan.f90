@@ -2,7 +2,7 @@
   IMPLICIT NONE
   
   INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-              
+               
 !          Arguments copied and modified from -- LAPACK routine (version 3.1) --
 !          Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !          November 2006
@@ -46,7 +46,7 @@
   REAL(wp),INTENT(INOUT) ::  A( LDA, * ), B( LDB, * )
   
 !  .. Work space ..  
-  INTEGER ::  ipiv(N+1),icol(N),irow(N),i,j,k,ii,jj,index_row,index_col
+  INTEGER ::  ipiv(N),icol(N),irow(N),i,j,k,ii,jj,index_row,index_col
   REAL(wp) :: largest,swap,temp,det,pivot
      
   info = 0
@@ -60,7 +60,7 @@
          info = -6
     END IF
     IF( info.NE.0 ) THEN
-       CALL xerbla( 'GAUSSJ ', -info )
+!       CALL xerbla( 'GAUSSJ ', -info )
        RETURN
     END IF
     
@@ -70,16 +70,16 @@
      largest=0     
      do j=1,N
        if(ipiv(j) == 1) then 
-        exit
+        cycle
        endif     
       do k=1,N
        if (ipiv(k) > 1) then
         info=ipiv(k)
-        write(*,*) 'Singular matrix in GaussJordan', info,i,k,det       
+        write(*,*) 'Singular matrix in GaussJordan'       
         RETURN
        endif
        if(ipiv(k) == 1) then 
-        exit
+        cycle
        endif 
        if(largest >= ABS(A(j,k))) then 
         exit
@@ -118,11 +118,9 @@
        B(index_col,ii)=B(index_col,ii)/pivot
      end do         
     endif
-!    jj=1
-!    do while (jj /= index_col .AND. jj <= N)
      do jj=1,N
      if (jj == index_col) then
-      exit
+      cycle
      endif
      temp=A(jj,index_col)
      A(jj,index_col)=0 
@@ -134,27 +132,26 @@
          B(jj,ii)=B(jj,ii)-B(index_col,ii)*temp
         end do         
       endif        
-!     jj=jj+1
     end do        
    end do 
-   write(*,*) 'never got here'
-   i=1
    ii=1
-   do while (irow(ii) /= icol(ii) .AND. i <= N)
-    ii=N-i+1  
+   do i=1,N
+    ii=N-i+1
+    if (irow(ii) == icol(ii)) then
+     cycle
+    endif  
     index_row=irow(ii)     
     index_col=icol(ii)   
     do k=1,N
      swap=A(k,index_row)
      A(k,index_row)=A(k,index_col)
      A(k,index_col)=swap
-    end do 
-    i=i+1         
+    end do         
    end do
    do i=1,N   
      if (ipiv(i) /= 1) then
       info=ipiv(i)
-      write(*,*) 'Singular matrix in GaussJordan, det =',det      
+      write(*,*) 'Singular matrix in GaussJordan'      
       RETURN
      endif 
    end do    

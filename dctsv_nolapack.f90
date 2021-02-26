@@ -6,6 +6,7 @@
 !      Arguments copied/modified from dgtsv.f *  -- LAPACK routine (version 3.1) --
 !      Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !      November 2006
+!      THIS VERSION DOES NOT NEED LINKING WITH LAPACK OR BLAS
 !
 !  N       (input) INTEGER
 !          The order of the matrix A.  N >= 4.
@@ -63,15 +64,6 @@
        REAL(wp) :: ud(2,2,0:N/2+1),ue(2,0:N/2+1),BW(N),DET  !  ud is my set of matrices Aj ue is my vectors vj 
        INTEGER :: i,j,k,p  
 
-!      needed for f90+ calling of f77 routines
-       INTERFACE
-          SUBROUTINE XERBLA( SRNAME, INFO )
-!         .. Scalar Arguments ..
-          CHARACTER*6        SRNAME          !CHARACTER(6)
-          INTEGER            INFO
-          END SUBROUTINE XERBLA      
-       END INTERFACE
-
 !      INFO handling copied/modified from dgtsv.f *  -- LAPACK routine (version 3.1) --
 !      Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !      November 2006
@@ -83,12 +75,9 @@
        ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
          INFO = -7
        END IF
-       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DCTSV ', INFO )
-         RETURN
-       END IF
        IF( N.EQ.0 ) RETURN
 !      End INFO handling
+
        p=mod(N,2)
        BW=0        
 !      FIRST EQUATION ud(0)=((0,1),(1,0)
@@ -108,7 +97,6 @@
          ud(2,2,j)=-((DL(1-j+N)*(D(j)+DL(j)*ud(1,1,-1+j)))/DET)
         ELSE
          INFO=j
-         CALL XERBLA( 'DCTSV ', INFO )
          RETURN
         ENDIF 
        end do
@@ -130,7 +118,6 @@
                 DU(1-j+N)*(B(j,k)-DL(j)*ue(1,-1+j))*ud(2,1,-1+j))/DET 
         ELSE
          INFO=j
-         CALL XERBLA( 'DCTSV ', INFO )
          RETURN
         ENDIF                                                                                              
        end do 
@@ -150,7 +137,6 @@
               (B(j,k)-DL(j)*ue(1,-1+j))*(-DL(1+j)-DU(1+j)*ud(2,1,-1+j)))/DET                                                              
         ELSE
          INFO=j
-         CALL XERBLA( 'DCTSV ', INFO )
          RETURN
         ENDIF
         BW(j)=ue(1,j)
@@ -177,7 +163,6 @@
                  ud(2,1,-1+j)+D(j)*DU(2+j)*ud(2,2,-1+j)+DL(j)*DU(2+j)*ud(1,1,-1+j)*ud(2,2,-1+j)))/DET       
         ELSE
          INFO=j
-         CALL XERBLA( 'DCTSV ', INFO )
          RETURN
         ENDIF                
         endif               

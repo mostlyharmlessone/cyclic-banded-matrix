@@ -1,9 +1,9 @@
-   SUBROUTINE DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
-   Use lapackinterface  
+   SUBROUTINE DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO ) 
    IMPLICIT NONE
 !   Copyright (c) 2021   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
 !   using an O(N/KU+KU)xKUxKU algorithm 
+!   THIS VERSION DOES NOT REQUIRE LINKING WITH LAPACK AND BLAS
 
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision 
 
@@ -85,13 +85,11 @@
    REAL(wp) :: UB(2*KU,2*KU,N/(2*KU)+2*KU)   ! Inverse(Cj+Sj*A(:,:,j-1))
    REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+2*KU) ! ud is my set of matrices Aj
    REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU)      ! ue is my vectors vj 
-   REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),BB(2*KU,2*KU),CC(2*KU),DD(2*KU) ! working copies
+   REAL(wp) :: A(2*KU,2*KU),BB(2*KU,2*KU) ! working copies
    REAL(wp) :: IDENTS(2*KU+mod(N,2*KU),2*KU),AL(2*KU,2*KU),BL(2*KU,2*KU+mod(N,2*KU))
    REAL(wp) :: AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU))
-   REAL(wp) :: WORK(3*(2*KU+mod(N,2*KU)))
-   INTEGER :: i,j,k,p,ii,jj,kk,lwork,ipiv(2*KU+mod(N,2*KU))
-     
-   lwork=size(work)
+   INTEGER :: i,j,k,p,ii,jj,kk
+    
    p=mod(N,2*KU)
       
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
@@ -108,14 +106,11 @@
          INFO = -7
       END IF
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DCBSV ', INFO )
          RETURN
       END IF
 !     end info handling
 !
 !  Initialize
-   work=0
-   ipiv=0
    Bj=0
    Cj=0
    Pj=0
@@ -211,33 +206,15 @@
    jj=0  !index of number of arrays
    do j=1,(N-p)/2-KU,KU     ! j is not used in this loop, it's just a counter 
     jj=jj+1     
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
-    A=Cj(:,:,jj)+AA
-!    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))
-    BB=-Pj(:,:,jj)   
-    call DGETRF(2*KU,2*KU,A,2*KU,IPIV,INFO ) ! overwrites A into factors
+    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))
+    BB=-Pj(:,:,jj)
+    call GaussJordan( 2*KU, 2*KU, A, 2*KU, BB, 2*KU, INFO )
     if (info /= 0) then
-     CALL XERBLA( 'DGETRF/DCBSV ', INFO )
-     RETURN
-    else
-!    compute next UD using factored A
-    call DGETRS('N',2*KU,2*KU,A,2*KU,IPIV,BB,2*KU,INFO) ! overwrites BB into solution
-    endif
-    if (info /= 0) then
-     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
-     RETURN
-    else
-     UD(:,:,jj)=BB   
-    endif      
-!   generate inverse and store it for multiple solution vectors from NHRS
-!   A(i,k,j)=Inverse(Cj+Sj*A(:,:,j-1))*(-Pj)
-    call DGETRI(2*KU,A,2*KU,IPIV, WORK, LWORK, INFO ) ! overwrites A into inverse
-    if (info /= 0) then
-     CALL XERBLA( 'DGETRI/DCBSV ', INFO )
      RETURN
     else
      UB(:,:,jj)=A
-    endif
+     UD(:,:,jj)=BB
+    endif  
   end do
 ! DONE WITH ALL BUT LAST INVERSION
 ! GENERATE SOLUTIONS
@@ -254,11 +231,8 @@
     do i=KU+1,2*KU
       Bj(i,jj)=B(N-2*KU+i-j+1,kk)
     end do     
-!   (Cj+Sj*UD(:,:,j-1))*v(i,j)=bj-Sj*v(:,j-1) using UB=Inverse(Cj+Sj*UD(:,:,j-1)) from above
-    call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1),1,0.0_wp,CC,1) 
-    DD=Bj(:,jj)-CC     
-    call DGEMV('N',2*KU,2*KU,1.0_wp,UB(:,:,jj),2*KU,DD,1,0.0_wp,UE(:,jj),1)  
-!    UE(:,jj)=matmul(UB(:,:,jj),Bj(:,jj)-matmul(Sj(:,:,jj),UE(:,jj-1)))    
+!   (Cj+Sj*UD(:,:,j-1))*v(i,j)=bj-Sj*v(:,j-1) using UB=Inverse(Cj+Sj*UD(:,:,j-1)) from above  
+    UE(:,jj)=matmul(UB(:,:,jj),Bj(:,jj)-matmul(Sj(:,:,jj),UE(:,jj-1)))    
    end do
 !  LAST EQUATION  (last j from above+KU)
     jj=jj+1
@@ -267,18 +241,10 @@
     do i=1,2*KU+p
       BjL(i)=B(j+i-1,kk)   ! write BjL with RHS
     end do      
-    call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1),1,0.0_wp,CC,1) 
-    call DGEMV('N',2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,CC,1,0.0_wp,CCL,1)
-    CCL=BjL-CCL
-!    CCL=BjL-matmul(IDENTS,matmul(Sj(:,:,jj),UE(:,jj-1)))
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AL,2*KU)
-    call DGEMM('N','T',2*KU,2*KU+p,2*KU,1.0_wp,AL,2*KU,IDENTS,2*KU+p,0.0_wp,BL,2*KU)
-    call DGEMM('N','N',2*KU+p,2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,BL,2*KU,0.0_wp,AAL,2*KU+p)
-    AAL=CjL+AAL
-!    AAL=CjL+matmul(IDENTS,matmul(matmul(Sj(:,:,jj),UD(:,:,jj-1)),Transpose(IDENTS)))    
-    call DGESV(2*KU+p, 1, AAL, 2*KU+p, IPIV, CCL, 2*KU+p, INFO ) ! overwrites CCL
+    CCL=BjL-matmul(IDENTS,matmul(Sj(:,:,jj),UE(:,jj-1)))
+    AAL=CjL+matmul(IDENTS,matmul(matmul(Sj(:,:,jj),UD(:,:,jj-1)),Transpose(IDENTS)))    
+    call GaussJordan( 2*KU+p, 1, AAL, 2*KU+p, CCL, 2*KU+p, INFO )
     if (info /= 0) then        
-     CALL XERBLA( 'DGESV/DCBSV ', INFO )
      RETURN
     else    
     do i=1,2*KU+p
@@ -294,9 +260,7 @@
 !   BACKSUBSTITUTION z(j-1)=UE(j-1)+UD(:,:,j-1)*z(j)
     ii=jj ! save jj 
     do while (jj > 1)
-     call DGEMV('N',2*KU,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj),1,0.0_wp,CC,1)    
-     Bj(:,jj-1)=UE(:,jj-1)+CC
-!      Bj(:,jj-1)=UE(:,jj-1)+matmul(UD(:,:,jj-1),Bj(:,jj))
+      Bj(:,jj-1)=UE(:,jj-1)+matmul(UD(:,:,jj-1),Bj(:,jj))
       jj=jj-1
     end do 
 !    overwrite RHS with solution Bj      
