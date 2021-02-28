@@ -2,7 +2,7 @@
   IMPLICIT NONE
   
   INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-               
+! Copyright (c) 2021   Anthony M de Beus              
 !          Arguments copied and modified from -- LAPACK routine (version 3.1) --
 !          Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !          November 2006
@@ -47,7 +47,7 @@
   
 !  .. Work space ..  
   INTEGER ::  ipiv(N),icol(N),irow(N),i,j,k,ii,jj,index_row,index_col
-  REAL(wp) :: largest,swap,temp,det,pivot
+  REAL(wp) :: largest,swap,temp,pivot
      
   info = 0
     IF( N.LT.0 ) THEN
@@ -65,7 +65,6 @@
     END IF
     
    ipiv=0    
-   det=1
    do i=1,N
      largest=0     
      do j=1,N
@@ -93,7 +92,6 @@
     irow(i)=index_row     
     icol(i)=index_col
     if (index_row /= index_col) then
-     det=-det
      do ii=1,N
       swap=A(index_row,ii)
       A(index_row,ii)=A(index_col,ii)
@@ -108,7 +106,6 @@
      endif        
     endif
     pivot=A(index_col,index_col)  
-    det=det*pivot
     A(index_col,index_col)=1
     do ii=1,N
       A(index_col,ii)=A(index_col,ii)/pivot
@@ -147,13 +144,6 @@
      A(k,index_row)=A(k,index_col)
      A(k,index_col)=swap
     end do         
-   end do
-   do i=1,N   
-     if (ipiv(i) /= 1) then
-      info=ipiv(i)
-      write(*,*) 'Singular matrix in GaussJordan'      
-      RETURN
-     endif 
    end do    
             
   END SUBROUTINE GaussJordan     

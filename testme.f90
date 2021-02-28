@@ -1,9 +1,9 @@
     program testme
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=1000           ! size of problem
-    INTEGER, PARAMETER :: KU=2             ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    REAL(wp) :: d(n),a(n),b(n),c(n),aij(n,n),s(n),bij(n,n),cij(n,n),s2(n,2),d2(n,2)
+    INTEGER, PARAMETER :: n=1001           ! size of problem
+    INTEGER, PARAMETER :: KU=3             ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start
     INTEGER :: i,j,k,INFO,ipiv(n)
 !   Copyright (c) 2021   Anthony M de Beus
@@ -26,30 +26,30 @@
        endif
       endif
      end do
-      s(i)=i                       ! solution vectors
-      s2(i,1)=i
-      s2(i,2)=i**2
+      s(i,1)=i                     ! solution vectors
+      s(i,2)=i**2
     end do
-    d=matmul(aij,s)                ! RHS vectors
+    d=matmul(aij,s )               ! RHS vectors
     cij=aij                        ! store a copy
 
     call CPU_TIME(time_start)
-    call DGESV(N, 1, AIJ, N, IPIV, D, N, INFO ) ! overwrites  aij & d
+    call DGESV(N, 2, AIJ, N, IPIV, D, N, INFO ) ! overwrites  aij & d
     call CPU_TIME(time_end)
     write(*,*) 'Using full matrix solver from LAPACK, dgesv.f, O(n^2)'
     write(*,*) 'time: ',time_end-time_start
-    write(*,*) 'solution error',dot_product((s-d),(s-d))
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
     
     aij=cij
-    d2=matmul(aij,s2)                           ! tests using two solution vectors
+    d=matmul(aij,s)                           ! tests using two solution vectors
     call CPU_TIME(time_start)
-    call GaussJordan( N, 2, AIJ, N, D2, N, INFO )
+!    call GaussJordan( N, 2, AIJ, N, D, N, INFO )
     call CPU_TIME(time_end)
     write(*,*) 'Using full matrix solver Gauss-Jordan with inverse, O(n^3)'
     write(*,*) 'time: ',time_end-time_start
-    write(*,*) 'solution error',dot_product((s2(:,1)-d2(:,1)),(s2(:,1)-d2(:,1))) 
-    write(*,*) 'solution error',dot_product((s2(:,2)-d2(:,2)),(s2(:,2)-d2(:,2)))
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     bij=aij
        
     aij=cij
@@ -59,8 +59,7 @@
     do i=1,n
       bij(i,i) = 1.0
     enddo
-    aij=aij-bij
-    write(*,*) 'inverse error ',sum(matmul(aij,aij))   ! tests the inverse
+    write(*,*) 'inverse error ',sum((aij-bij)*(aij-bij))   ! tests the inverse
     write(*,*) ' '
 
     aij=cij
@@ -81,22 +80,24 @@
     c=AB(3,:)
 
     call CPU_TIME(time_start)
-    call DCTSV( n, 1, a, b, c, d, n, INFO )            ! overwrites d into solution
+    call DCTSV( n, 2, a, b, c, d, n, INFO )            ! overwrites d into solution
     call CPU_TIME(time_end)
     write(*,*) 'Using dctsv.f90, O(n)'    
     write(*,*) 'time: ',time_end-time_start
-    write(*,*) 'solution error',dot_product((s-d),(s-d))
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
 
     ENDIF
 
     d=matmul(aij,s)
     call CPU_TIME(time_start)
-    call DCBSV( N, KU, 1, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+    call DCBSV( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
     call CPU_TIME(time_end)
     write(*,*) 'Using dcbsv.f90, O(n)'    
     write(*,*) 'time: ',time_end-time_start
-    write(*,*) 'solution error',dot_product((s-d),(s-d))
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
    
 
    END PROGRAM testme

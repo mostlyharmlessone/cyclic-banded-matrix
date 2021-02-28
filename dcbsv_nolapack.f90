@@ -1,10 +1,9 @@
-   SUBROUTINE DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO ) 
+   SUBROUTINE DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO )  
    IMPLICIT NONE
 !   Copyright (c) 2021   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
 !   using an O(N/KU+KU)xKUxKU algorithm 
-!   THIS VERSION DOES NOT REQUIRE LINKING WITH LAPACK AND BLAS
-
+!   THIS VERSION DOES NOT REQUIRE LAPACK AND BLAS
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision 
 
 !  Arguments copied and modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
@@ -76,22 +75,21 @@
    Real(wp), Intent(INOUT) ::  B( ldb, * )
 
 !  .. Work space ..
-   REAL(wp) :: Bj(2*KU,N/(2*KU)+2*KU)  
+   REAL(wp) :: Bj(2*KU,N/(2*KU)+2*KU,NRHS)  
    REAL(wp) :: Cj(2*KU,2*KU,N/(2*KU)+2*KU)
    REAL(wp) :: Pj(2*KU,2*KU,N/(2*KU)+2*KU)
    REAL(wp) :: Sj(2*KU,2*KU,N/(2*KU)+2*KU)   
-   REAL(wp) :: BjL(2*KU+mod(N,2*KU))   
+   REAL(wp) :: BjL(2*KU+mod(N,2*KU),NRHS)   
    REAL(wp) :: CjL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)) 
-   REAL(wp) :: UB(2*KU,2*KU,N/(2*KU)+2*KU)   ! Inverse(Cj+Sj*A(:,:,j-1))
    REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+2*KU) ! ud is my set of matrices Aj
-   REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU)      ! ue is my vectors vj 
-   REAL(wp) :: A(2*KU,2*KU),BB(2*KU,2*KU) ! working copies
+   REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU,NRHS)      ! ue is my vectors vj 
+   REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
    REAL(wp) :: IDENTS(2*KU+mod(N,2*KU),2*KU),AL(2*KU,2*KU),BL(2*KU,2*KU+mod(N,2*KU))
-   REAL(wp) :: AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU))
-   INTEGER :: i,j,k,p,ii,jj,kk
+   REAL(wp) :: AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU),NRHS) 
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU+mod(N,2*KU))
     
    p=mod(N,2*KU)
-      
+   
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !     November 2006
@@ -111,13 +109,15 @@
 !     end info handling
 !
 !  Initialize
+   ipiv=0
    Bj=0
    Cj=0
    Pj=0
    CjL=0
    BjL=0
    AAL=0
-   CCL=0   
+   CCL=0
+   EE=0   
    Sj=0   
    jj=0  !index of number of arrays
        
@@ -175,7 +175,8 @@
          
 !  FIRST EQUATION 
 !  initial values
-!  A(0) = permuted identity
+!  FIRST EQUATION V(0)=0 & A(0) = permuted identity
+   UE(:,0,:)=0
    UD(:,:,0)=0
    do i=1,2*KU
      do k=1,2*KU
@@ -201,79 +202,79 @@
       endif
      end do 
     end do
-
-!  ALL BUT THE LAST EQUATION, GENERATE UD & UB  !   (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
+    
+   do kk=1,NRHS  
+!  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
    jj=0  !index of number of arrays
    do j=1,(N-p)/2-KU,KU     ! j is not used in this loop, it's just a counter 
     jj=jj+1     
-    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))
-    BB=-Pj(:,:,jj)
-    call GaussJordan( 2*KU, 2*KU, A, 2*KU, BB, 2*KU, INFO )
+    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1)) 
+!   write Bj with RHS
+    do i=1,KU
+      Bj(i,jj,kk)=B(j+i-1,kk)   
+    end do     
+    do i=KU+1,2*KU
+      Bj(i,jj,kk)=B(N-2*KU+i-j+1,kk)
+    end do       
+!   concatenate Aj and vj solutions onto EE        
+     EE(:,1:2*KU)=-Pj(:,:,jj)
+     do hh=1,NRHS     
+      EE(:,2*KU+hh)=Bj(:,jj,kk)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
+     end do
+!    compute next UD,UE using factored A  
+    call GaussJordan( 2*KU, 2*KU+NRHS, A,2*KU, EE, 2*KU, INFO )   ! overwrites EE into solution    
     if (info /= 0) then
      RETURN
     else
-     UB(:,:,jj)=A
-     UD(:,:,jj)=BB
-    endif  
-  end do
-! DONE WITH ALL BUT LAST INVERSION
-! GENERATE SOLUTIONS
-  do kk=1,NRHS  
-!  FIRST EQUATION V(0)=0
-   UE(:,0)=0
-!  ALL BUT THE LAST EQUATION GENERATE UE
-   jj=0  !index of number of arrays
-   do j=1,(N-p)/2-KU,KU          ! j is used here to generate Bj
-    jj=jj+1
-    do i=1,KU
-      Bj(i,jj)=B(j+i-1,kk)   ! write Bj with RHS
-    end do     
-    do i=KU+1,2*KU
-      Bj(i,jj)=B(N-2*KU+i-j+1,kk)
-    end do     
-!   (Cj+Sj*UD(:,:,j-1))*v(i,j)=bj-Sj*v(:,j-1) using UB=Inverse(Cj+Sj*UD(:,:,j-1)) from above  
-    UE(:,jj)=matmul(UB(:,:,jj),Bj(:,jj)-matmul(Sj(:,:,jj),UE(:,jj-1)))    
-   end do
+     UD(:,:,jj)=EE(:,1:2*KU)
+    do hh=1,NRHS     
+     UE(:,jj,hh)=EE(:,2*KU+hh)                
+    end do    
+    endif          
+   end do 
+     
 !  LAST EQUATION  (last j from above+KU)
     jj=jj+1
     j=(N-p)/2+1-KU
 !   remaining values of B centrally
     do i=1,2*KU+p
-      BjL(i)=B(j+i-1,kk)   ! write BjL with RHS
+      BjL(i,kk)=B(j+i-1,kk)   ! write BjL with RHS
     end do      
-    CCL=BjL-matmul(IDENTS,matmul(Sj(:,:,jj),UE(:,jj-1)))
-    AAL=CjL+matmul(IDENTS,matmul(matmul(Sj(:,:,jj),UD(:,:,jj-1)),Transpose(IDENTS)))    
-    call GaussJordan( 2*KU+p, 1, AAL, 2*KU+p, CCL, 2*KU+p, INFO )
+    CCL(:,kk)=BjL(:,kk)-matmul(IDENTS,matmul(Sj(:,:,jj),UE(:,jj-1,kk)))
+    AAL=CjL+matmul(IDENTS,matmul(matmul(Sj(:,:,jj),UD(:,:,jj-1)),Transpose(IDENTS)))   
+    call GaussJordan( 2*KU+p,1, AAL ,2*KU+p, CCL(:,kk), 2*KU+p, INFO )  ! overwrites CCL
     if (info /= 0) then        
      RETURN
     else    
     do i=1,2*KU+p
-      B(j+i-1,kk)=CCL(i)         ! overwrite RHS with solution for inner values (reverse of above)
+      B(j+i-1,kk)=CCL(i,kk)         ! overwrite RHS with solution for inner values (reverse of above)
     end do        
     do i=1,KU
-      Bj(i,jj)=CCL(i)            ! write Bj with RHS
-      end do                     ! but exclude middle p values      
+      Bj(i,jj,kk)=CCL(i,kk)            ! write Bj with RHS
+      end do                           ! but exclude middle p values      
     do i=KU+1,2*KU
-      Bj(i,jj)=CCL(i+p)
+      Bj(i,jj,kk)=CCL(i+p,kk)
     end do 
     endif
+    
 !   BACKSUBSTITUTION z(j-1)=UE(j-1)+UD(:,:,j-1)*z(j)
     ii=jj ! save jj 
     do while (jj > 1)
-      Bj(:,jj-1)=UE(:,jj-1)+matmul(UD(:,:,jj-1),Bj(:,jj))
+!     call DGEMV('N',2*KU,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj,kk),1,0.0_wp,CC(:,kk),1)    
+!     Bj(:,jj-1,kk)=UE(:,jj-1,kk)+CC(:,kk)
+      Bj(:,jj-1,kk)=UE(:,jj-1,kk)+matmul(UD(:,:,jj-1),Bj(:,jj,kk))
       jj=jj-1
     end do 
 !    overwrite RHS with solution Bj      
     do j=(N-p)/2+1-KU,1,-KU            
      do i=1,KU
-      B(j+i-1,kk)=Bj(i,ii)    
+      B(j+i-1,kk)=Bj(i,ii,kk)   
      end do   
      do i=KU+1,2*KU
-      B(N-2*KU+i-j+1,kk)=Bj(i,ii)     
+      B(N-2*KU+i-j+1,kk)=Bj(i,ii,kk)   
      end do 
      ii=ii-1      
     end do 
-! next kk for NRHS  
-  end do  
-
+  end do
+  
 END SUBROUTINE dcbsv
