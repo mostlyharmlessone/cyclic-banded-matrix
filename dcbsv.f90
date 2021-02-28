@@ -86,7 +86,8 @@
    REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU,NRHS)      ! ue is my vectors vj 
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
    REAL(wp) :: IDENTS(2*KU+mod(N,2*KU),2*KU),AL(2*KU,2*KU),BL(2*KU,2*KU+mod(N,2*KU))
-   REAL(wp) :: AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU),NRHS) 
+   REAL(wp) :: AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU),NRHS)
+   Real(wp) :: D(2*KU+mod(N,2*KU),NRHS)   
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU+mod(N,2*KU))
     
    p=mod(N,2*KU)
@@ -204,8 +205,7 @@
       endif
      end do 
     end do
-    
-   do kk=1,NRHS  
+      
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
    jj=0  !index of number of arrays
    do j=1,(N-p)/2-KU,KU     ! j is not used in this loop, it's just a counter 
@@ -215,17 +215,17 @@
 !    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1)) 
 !   write Bj with RHS
     do i=1,KU
-      Bj(i,jj,kk)=B(j+i-1,kk)   
+      Bj(i,jj,1:NRHS)=B(j+i-1,1:NRHS)   
     end do     
     do i=KU+1,2*KU
-      Bj(i,jj,kk)=B(N-2*KU+i-j+1,kk)
+      Bj(i,jj,1:NRHS)=B(N-2*KU+i-j+1,1:NRHS)
     end do       
 !   concatenate Aj and vj solutions onto EE        
      EE(:,1:2*KU)=-Pj(:,:,jj)
      do hh=1,NRHS
       call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1) 
       EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
-!      EE(:,2*KU+hh)=Bj(:,jj,kk)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
+!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
      end do
 !    compute next UD,UE using factored A
     call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution                
@@ -233,53 +233,54 @@
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
      RETURN
     else
-    UD(:,:,jj)=EE(:,1:2*KU)
+     UD(:,:,jj)=EE(:,1:2*KU)
     do hh=1,NRHS     
      UE(:,jj,hh)=EE(:,2*KU+hh)                
     end do    
     endif          
    end do 
-     
-!  LAST EQUATION  (last j from above+KU)
-    jj=jj+1
-    j=(N-p)/2+1-KU
+   
+!  LAST EQUATION  (last j from above+KU)    
+    jj=(N-p)/(2*KU)       
+!   j=(N-p)/2+1-KU      
 !   remaining values of B centrally
     do i=1,2*KU+p
-      BjL(i,kk)=B(j+i-1,kk)   ! write BjL with RHS
-    end do      
-    call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,kk),1,0.0_wp,CC(:,kk),1) 
-    call DGEMV('N',2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,CC(:,kk),1,0.0_wp,CCL(:,kk),1)
-    CCL(:,kk)=BjL(:,kk)-CCL(:,kk)
-!    CCL=BjL-matmul(IDENTS,matmul(Sj(:,:,jj),UE(:,jj-1,kk)))
+      BjL(i,1:NRHS)=B((N-p)/2-KU+i,1:NRHS)   ! write BjL with RHS
+    end do
+    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)
+    call DGEMM('N','N',2*KU+p,NRHS,2*KU,1.0_wp,IDENTS,2*KU+p,CC(:,1:NRHS),2*KU,0.0_wp,CCL(:,1:NRHS),2*KU+p)        
+    CCL(:,1:NRHS)=BjL(:,1:NRHS)-CCL(:,1:NRHS)
+!    CCL(:,1:NRHS)=BjL(:,1:NRHS)-matmul(IDENTS,matmul(Sj(:,:,jj),UE(:,jj-1,1:NRHS)))    
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AL,2*KU)
     call DGEMM('N','T',2*KU,2*KU+p,2*KU,1.0_wp,AL,2*KU,IDENTS,2*KU+p,0.0_wp,BL,2*KU)
     call DGEMM('N','N',2*KU+p,2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,BL,2*KU,0.0_wp,AAL,2*KU+p)
     AAL=CjL+AAL
 !    AAL=CjL+matmul(IDENTS,matmul(matmul(Sj(:,:,jj),UD(:,:,jj-1)),Transpose(IDENTS)))   
-    call DGESV(2*KU+p, 1 , AAL, 2*KU+p, IPIV, CCL(:,kk), 2*KU+p, INFO ) ! overwrites CCL
+    call DGESV(2*KU+p, NRHS , AAL, 2*KU+p, IPIV, CCL(:,1:NRHS), 2*KU+p, INFO ) ! overwrites CCL    
     if (info /= 0) then        
      CALL XERBLA( 'DGESV/DCBSV ', INFO )
      RETURN
-    else    
+    else
     do i=1,2*KU+p
-      B(j+i-1,kk)=CCL(i,kk)         ! overwrite RHS with solution for inner values (reverse of above)
+      D(i,1:NRHS)=CCL(i,1:NRHS)          ! store RHS with solution for inner values      
     end do        
     do i=1,KU
-      Bj(i,jj,kk)=CCL(i,kk)            ! write Bj with RHS
-      end do                           ! but exclude middle p values      
+      Bj(i,jj,1:NRHS)=CCL(i,1:NRHS)      ! write Bj with RHS
+      end do                             ! but exclude middle p values      
     do i=KU+1,2*KU
-      Bj(i,jj,kk)=CCL(i+p,kk)
+      Bj(i,jj,1:NRHS)=CCL(i+p,1:NRHS)
     end do 
     endif
     
-!   BACKSUBSTITUTION z(j-1)=UE(j-1)+UD(:,:,j-1)*z(j)
-    ii=jj ! save jj 
-    do while (jj > 1)
-     call DGEMV('N',2*KU,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj,kk),1,0.0_wp,CC(:,kk),1)    
-     Bj(:,jj-1,kk)=UE(:,jj-1,kk)+CC(:,kk)
-!      Bj(:,jj-1,kk)=UE(:,jj-1)+matmul(UD(:,:,jj-1),Bj(:,jj))
-      jj=jj-1
-    end do 
+!   BACKSUBSTITUTION z(j-1)=UE(j-1)+UD(:,:,j-1)*z(j) 
+    do jj=(N-p)/(2*KU),2,-1
+     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
+     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
+!      Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))
+    end do
+    
+  do kk=1,NRHS         
+    ii=(N-p)/(2*KU)      
 !    overwrite RHS with solution Bj      
     do j=(N-p)/2+1-KU,1,-KU            
      do i=1,KU
@@ -289,7 +290,11 @@
       B(N-2*KU+i-j+1,kk)=Bj(i,ii,kk)   
      end do 
      ii=ii-1      
-    end do 
+    end do               
+  end do
+! write saved central values    
+  do i=1,2*KU+p
+     B((N-p)/2-KU+i,1:NRHS)=D(i,1:NRHS)
   end do
   
 END SUBROUTINE dcbsv

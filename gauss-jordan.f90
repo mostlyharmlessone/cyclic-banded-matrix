@@ -47,7 +47,7 @@
   
 !  .. Work space ..  
   INTEGER ::  ipiv(N),icol(N),irow(N),i,j,k,ii,jj,index_row,index_col
-  REAL(wp) :: largest,swap,temp,pivot
+  REAL(wp) :: largest,swap(N),temp,pivot,swap2(NRHS)
      
   info = 0
     IF( N.LT.0 ) THEN
@@ -91,44 +91,26 @@
     ipiv(index_col)=ipiv(index_col)+1
     irow(i)=index_row     
     icol(i)=index_col
-    if (index_row /= index_col) then
-     do ii=1,N
-      swap=A(index_row,ii)
-      A(index_row,ii)=A(index_col,ii)
-      A(index_col,ii)=swap
-     end do    
-     if (NRHS >= 1) then 
-      do ii=1,NRHS
-       swap=B(index_row,ii)
-       B(index_row,ii)=B(index_col,ii)
-       B(index_col,ii)=swap    
-      end do
-     endif        
+    if (index_row /= index_col) then    
+      swap(1:N)=A(index_row,1:N)
+      A(index_row,1:N)=A(index_col,1:N)
+      A(index_col,1:N)=swap(1:N)
+      swap2(1:NRHS)=B(index_row,1:NRHS)
+      B(index_row,1:NRHS)=B(index_col,1:NRHS)
+      B(index_col,1:NRHS)=swap2(1:NRHS)    
     endif
     pivot=A(index_col,index_col)  
     A(index_col,index_col)=1
-    do ii=1,N
-      A(index_col,ii)=A(index_col,ii)/pivot
-    end do        
-    if (NRHS >= 1) then     
-     do ii=1,NRHS
-       B(index_col,ii)=B(index_col,ii)/pivot
-     end do         
-    endif
-     do jj=1,N
+    A(index_col,1:N)=A(index_col,1:N)/pivot       
+    B(index_col,1:NRHS)=B(index_col,1:NRHS)/pivot
+    do jj=1,N
      if (jj == index_col) then
       cycle
      endif
      temp=A(jj,index_col)
      A(jj,index_col)=0 
-      do ii=1,N
-        A(jj,ii)=A(jj,ii)-A(index_col,ii)*temp
-      end do        
-      if (NRHS >= 1) then     
-        do ii=1,NRHS
-         B(jj,ii)=B(jj,ii)-B(index_col,ii)*temp
-        end do         
-      endif        
+     A(jj,1:N)=A(jj,1:N)-A(index_col,1:N)*temp
+     B(jj,1:NRHS)=B(jj,1:NRHS)-B(index_col,1:NRHS)*temp
     end do        
    end do 
    ii=1
@@ -139,11 +121,9 @@
     endif  
     index_row=irow(ii)     
     index_col=icol(ii)   
-    do k=1,N
-     swap=A(k,index_row)
-     A(k,index_row)=A(k,index_col)
-     A(k,index_col)=swap
-    end do         
+    swap(1:N)=A(1:N,index_row)
+    A(1:N,index_row)=A(1:N,index_col)
+    A(1:N,index_col)=swap(1:N)        
    end do    
             
   END SUBROUTINE GaussJordan     
