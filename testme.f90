@@ -1,4 +1,5 @@
     program testme
+    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
     INTEGER, PARAMETER :: n=901            ! size of problem
@@ -15,7 +16,7 @@
 
 !   only runs dctsv.f90 if KU=1
 !   only runs gauss-jordan if N < 500 (gets too slow)
-!   only runs dgbsv and dgtsv if KL > 0 (and in fact KL=KU)
+!   only runs dgbsv and/or dgtsv if KL > 0 (and in fact KL=KU); non-periodic lapack routines, KU=KL=1 for dgtsv
    
 !   This is an example of a band matrix for testing
     aij=0
