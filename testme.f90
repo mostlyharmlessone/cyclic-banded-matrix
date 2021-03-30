@@ -6,7 +6,7 @@
     INTEGER, PARAMETER :: KU=5             ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=5             ! for testing vs lapack version only
                                            ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
-    REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2)
+    REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),dd(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: CD(2*KL+KU+1,n)                  ! CD(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: a_short(n-1)                     ! truncated a() for dgtsv
@@ -84,6 +84,19 @@
       endif 
      end do
     end do
+
+!    d=mat_mul(AB,s)                ! needs matrix multiplication for cyclic stored matrices
+    do k=1,2 
+     do j=1,n               
+      do i=-KU,KU
+       dd(j,k)=AB(KU+1+i,j)*s(i+j,k)
+      end do
+     end do
+    end do
+
+      write(*,*) 'mult error',dot_product((dd(:,1)-d(:,1)),(dd(:,1)-d(:,1))) 
+      write(*,*) 'mult error',dot_product((dd(:,2)-d(:,2)),(dd(:,2)-d(:,2))) 
+      stop
 
     if (KL > 0) then
     do i=1,n                                           ! store aij in lapack band format if we're testing non-cyclic
