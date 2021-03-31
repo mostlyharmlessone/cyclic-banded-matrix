@@ -2,11 +2,11 @@
 !   doesn't compare with full matrix routine to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=901            ! size of problem
-    INTEGER, PARAMETER :: KU=5             ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=5             ! for testing vs lapack version only
+    INTEGER, PARAMETER :: n=1100           ! size of problem
+    INTEGER, PARAMETER :: KU=3            ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=0             ! for testing vs lapack version only
                                            ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
-    REAL(wp) :: d(n,2),a(n),b(n),c(n),s(n,2)
+    REAL(wp) :: d(n,2),a(n),b(n),c(n),s(n,2),dd(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: CD(2*KL+KU+1,n)                  ! CD(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: a_short(n-1)                     ! truncated a() for dgtsv
@@ -19,15 +19,19 @@
    
     do i=1,n                                           ! store AB in band-cyclic format
      do j=1,n
-      k=2*KU+2-mod(N+KU+1+i-j,N)
-      AB(k,i)=500+3*i-2*j
+      if (ABS(i - j) <= KU ) then                      ! still not right
+       k=2*KU+2-mod(N+KU+1+i-j,N) 
+       AB(k,i)=500+3*i-2*j
+       endif
      end do
     end do
 
     if (KL > 0) then
     do i=1,n                                           ! store CD in lapack band format if we're testing non-cyclic
      do j=1,n
-      CD(KL+KU+1+i-j,j)=aij(i,j) 
+      if (ABS(i - j) <= KU ) then
+      CD(KL+KU+1+i-j,j)=500+3*i-2*j 
+      endif
      end do
     end do
     endif
@@ -38,14 +42,18 @@
     end do
 
 !    d=mat_mul(AB,s)                ! needs matrix multiplication for cyclic stored matrices
+
+    dd=0
     do k=1,2 
      do j=1,n               
       do i=-KU,KU
-       d(j,k)=AB(KU+1+i,j)*s(i+j,k)
+       dd(j,k)=dd(j,k)+AB(KU+1+i,j)*s(1+mod(N+i+j-1,N),k)
       end do
      end do
     end do
-
+    
+    d=dd
+    
     IF (KU == 1) then                                  ! store tridiagonal matrices in vector format
     a=AB(1,:)
     b=AB(2,:)
@@ -64,7 +72,8 @@
     write(*,*) ' '
     
      if (KL > 0) then   ! or KL == 1
-      d=matmul(aij,s)       
+!      d=matmul(aij,s) 
+      d=dd      
       call CPU_TIME(time_start)
       call DGTSV( n, 2, a_short, b, c, d, n, INFO )     ! overwrites d into solution
       call CPU_TIME(time_end)
@@ -77,7 +86,8 @@
 
     ENDIF
 
-    d=matmul(aij,s)
+!    d=matmul(aij,s)
+    d=dd
     call CPU_TIME(time_start)
     call DCBSV( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
     call CPU_TIME(time_end)
@@ -88,7 +98,8 @@
     write(*,*) ' '
 
      if (KL > 0) then   
-      d=matmul(aij,s)       
+!      d=matmul(aij,s) 
+      d=dd      
       call CPU_TIME(time_start)          
       call dgbsv( N, KL, KU, 2, CD, 2*KL+KU+1, IPIV, d, N, INFO ) ! overwrites d into solution
       call CPU_TIME(time_end)
@@ -98,21 +109,5 @@
       write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
      endif
  
-
-   END PROGRAM testme
-
-FUNCTION Area_Circle(r)
-
-IMPLICIT NONE
-REAL :: Area_Circle
-REAL, INTENT(IN) :: r
-
-! Declare local constant Pi
-REAL, PARAMETER :: Pi = 3.1415927
-
-Area_Circle = Pi * r * r
-
-END FUNCTION Area_Circle
-
-
+   END PROGRAM testme_large
 
