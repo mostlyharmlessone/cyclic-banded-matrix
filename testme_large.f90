@@ -1,12 +1,12 @@
     program testme_large
-!   doesn't compare with full matrix routine to allow for larger n    
+!   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
     INTEGER, PARAMETER :: n=50000 ! size of problem
-    INTEGER, PARAMETER :: KU=1    ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=1  ! for testing vs lapack version only
-                                  ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
-    REAL(wp) :: d(n,2),a(n),b(n),c(n),s(n,2),dd(n,2)
+    INTEGER, PARAMETER :: KU=123   ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=123  ! for testing vs lapack version only
+                                ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
+    REAL(wp) :: d(n,2),a(n),b(n),c(n),s(n,2),dd(n,2),z(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: CD(2*KL+KU+1,n)                  ! CD(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: a_short(n-1)                     ! truncated a() for dgtsv
@@ -14,9 +14,8 @@
 !   Copyright (c) 2021   Anthony M de Beus
     AB=0
     CD=0
-!   only runs dctsv.f90 if KU=1
-!   only runs dgbsv and/or dgtsv if KL > 0 (and in fact KL=KU)
-!   non-periodic lapack routines, KU=KL=1 for dgtsv
+!   only runs tridiagonal routines dctsv.f90, dgtsv.f90 or thomas.f90 if KU=1
+!   only runs non-periodic lapack routines dgbsv and/or dgtsv if KL > 0 (and in fact KL=KU)   
    
     do i=-KU,KU                                ! generate AB in band-cyclic format
      do j=1,n
@@ -32,17 +31,23 @@
      end do
     end do
 
-    if (KL > 0) then
-    do i=1,2*KU+1                       ! store CD in lapack band format if we're testing non-cyclic
+    IF (N < 60000) then            ! take too long
+    if (KL > 0) then               ! convert AB banded to CD banded by brute force
+    do i=1,n                       ! this will take O(n^2) time unfortunately
      do j=1,n
-      CD(i+KL,j)=AB(2*KU+2-i,j)          !CD(KL+KU+1+i-j,j) vs  AB(2*KU+2-mod(N+KU+1+i-j,N),i)
-     end do                                 !needs transpose of i,j too?
+      if ( (2*KU+2-mod(N+KU+1+i-j,N)) > 0 .AND. (2*KU+2-mod(N+KU+1+i-j,N)) <= 2*KU+1) then
+       if ( KL+KU+1+i-j > 0 .AND. KL+KU+1+i-j <= 2*KL+KU+1) then
+        CD(KL+KU+1+i-j,j)=AB(2*KU+2-mod(N+KU+1+i-j,N),i)
+       endif
+      endif  
+     end do                                 
     end do
     endif
+    ENDIF
 
     do i=1,n
-      s(i,1)=i                     ! solution vectors
-      s(i,2)=10*sin(5.0*i)         ! i**2 gets too ill-conditioned with large n
+      s(i,1)=57.3*cos(40.0*i)        ! solution vectors
+      s(i,2)=10*sin(5.0*i)         ! i and i**2 get too ill-conditioned with large n
     end do
 
 ! needs matrix multiplication for cyclic stored matrices
@@ -73,8 +78,10 @@
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
-    
-     if (KL > 0) then   ! or KL == 1 
+
+!    LAPACK routine for non-cyclic system    
+     if (KL > 0) then   ! and KL == KU == 1 
+      IF (N < 60000) then
       d=dd      
       call CPU_TIME(time_start)
       call DGTSV( n, 2, a_short, b, c, d, n, INFO )     ! overwrites d into solution
@@ -83,6 +90,17 @@
       write(*,*) 'time: ',time_end-time_start
       write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
       write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
+      write(*,*) ' '
+      ENDIF
+!     simple tridiagonal algorithm: should be fastest with -O3 compilation
+      d=dd      
+      call CPU_TIME(time_start)
+      call thomas(a,b,c,d,z,n,2)                        ! overwrites b and d, output is z     
+      call CPU_TIME(time_end)
+      write(*,*) 'Using thomas, O(n)'    
+      write(*,*) 'time: ',time_end-time_start
+      write(*,*) 'solution error',dot_product((s(:,1)-z(:,1)),(s(:,1)-z(:,1))) 
+      write(*,*) 'solution error',dot_product((s(:,2)-z(:,2)),(s(:,2)-z(:,2)))
       write(*,*) ' '
      endif
 
@@ -98,6 +116,8 @@
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
 
+!    LAPACK routine for non-cyclic system
+     IF (N < 60000) then
      if (KL > 0) then    
       d=dd      
       call CPU_TIME(time_start)          
@@ -108,6 +128,7 @@
       write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
       write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
      endif
+     ENDIF
  
    END PROGRAM testme_large
 

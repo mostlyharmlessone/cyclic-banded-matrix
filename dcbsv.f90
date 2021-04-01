@@ -17,6 +17,7 @@
 !          subdiagonals wrap around to the last columns and first rows and the 
 !          superdiagonals wrap around to the first columns and last rows i.e.
 !          AB(2*KU+2-mod(N+KU+1+i-j,N),i) = A(i,j) (transpose of dgbsv.f)
+!          Rows of A are Columns of AB; Diagonals of A are Rows of AB.
 !          See further details below.
 !          
 !  LDAB    (input) INTEGER

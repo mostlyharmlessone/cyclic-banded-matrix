@@ -17,6 +17,7 @@
 !          subdiagonals wrap around to the last columns and first rows and the 
 !          superdiagonals wrap around to the first columns and last rows i.e.
 !          AB(2*KU+2-mod(N+KU+1+i-j,N),i) = A(i,j) (transpose of dgbsv.f)
+!          Rows of A are Columns of AB; Diagonals of A are Rows of AB.
 !          See further details below.
 !          
 !  LDAB    (input) INTEGER
@@ -67,6 +68,7 @@
 !                                                     0   0   0   0   a75 a76 a77 a78 a79
 !                                                     a81 0   0   0    0  a86 a87 a88 a89
 !                                                     a91 a92 0   0    0   0  a97 a98 a99
+!
 !
 !  .. Scalar Arguments ..
    Integer, Intent(IN) ::  KU, LDAB, LDB, N, NRHS
@@ -123,8 +125,14 @@
    EE=0   
    Sj=0   
    jj=0  !index of number of arrays
-       
-    do j=1,(N-p)/2+1-KU,KU   
+
+!  Rotate AB
+
+
+!  Generate C,P & S for rotated       
+!    do j=1,(N-p)/2+1-KU,KU   
+      j=1                    ! replace this loop
+
        jj=jj+1
          do i=1,KU
           do k=1,KU
@@ -164,7 +172,7 @@
            endif
           end do 
          end do   
-   end do
+!   end do      ! this is the j loop
 
 !  LAST ARRAYS needs extra p rows in middle of Cj & Pj now 2KU+p square
          j=(N-p)/2+1-KU ! is found at middle 
@@ -208,7 +216,14 @@
       
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
    jj=0  !index of number of arrays
-   do j=1,(N-p)/2-KU,KU     ! j is not used in this loop, it's just a counter 
+
+!  ROTATE B
+
+
+!   do j=1,(N-p)/2-KU,KU     ! j is not used in this loop, it's just a counter 
+      j=1                    ! replace this loop
+
+
     jj=jj+1     
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
@@ -238,7 +253,8 @@
      UE(:,jj,hh)=EE(:,2*KU+hh)                
     end do    
     endif          
-   end do 
+!   end do  ! this is the j loop
+
    
 !  LAST EQUATION  (last j from above+KU)    
     jj=(N-p)/(2*KU)       
