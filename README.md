@@ -42,6 +42,10 @@ or (after commenting out the lapack routines in testme_large.f90)
 
 gfortran -O3 testme_large.f90 dctsv_nolapack.f90 dcbsv_nolapack.f90 thomas.f90 gauss-jordan.f90
 
+parallel versions with OpenMP
+
+gfortran -fbounds-check -g -fopenmp testme_large.f90 dcbsv_parallel.f90 dctsv_parallel.f90 thomas.f90 -llapack -lblas
+
 ./a.out
 
 ```

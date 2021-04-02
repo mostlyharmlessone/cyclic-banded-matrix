@@ -1,6 +1,11 @@
    SUBROUTINE DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
    Use lapackinterface  
-   IMPLICIT NONE
+   Use OMP_LIB
+   IMPLICIT NONE 
+!    needs these in ./bashrc
+!    OMP_NUM_THREADS=4;
+!    export OMP_NUM_THREADS
+
 !   Copyright (c) 2021   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
 !   using an O(N/KU+KU)xKUxKU algorithm 
@@ -130,8 +135,8 @@
 
 
 !  Generate C,P & S for rotated       
-!    do j=1,(N-p)/2+1-KU,KU   
-      j=1                    ! replace this loop
+    do j=1,(N-p)/2+1-KU,KU   
+!      j=1                    ! replace this loop
 
        jj=jj+1
          do i=1,KU
@@ -172,7 +177,7 @@
            endif
           end do 
          end do   
-!   end do      ! this is the j loop
+   end do      ! this is the j loop
 
 !  LAST ARRAYS needs extra p rows in middle of Cj & Pj now 2KU+p square
          j=(N-p)/2+1-KU ! is found at middle 
@@ -219,12 +224,13 @@
 
 !  ROTATE B
 
-
-!   do j=1,(N-p)/2-KU,KU     ! j is not used in this loop, it's just a counter 
-      j=1                    ! replace this loop
+   !$OMP DO
+   do j=1,(N-p)/2-KU,KU     ! j is not used in this loop, it's just a counter 
+!      j=1                    ! replace this loop
 
 
     jj=jj+1     
+!    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,0),2*KU,0.0_wp,AA,2*KU)
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
 !    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1)) 
@@ -238,7 +244,8 @@
 !   concatenate Aj and vj solutions onto EE        
      EE(:,1:2*KU)=-Pj(:,:,jj)
      do hh=1,NRHS
-      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1) 
+!      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,0,hh),1,0.0_wp,CC(:,hh),1) 
+      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1)
       EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
 !      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
      end do
@@ -246,15 +253,15 @@
     call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution                
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
-     RETURN
+ !    RETURN
     else
      UD(:,:,jj)=EE(:,1:2*KU)
     do hh=1,NRHS     
      UE(:,jj,hh)=EE(:,2*KU+hh)                
     end do    
     endif          
-!   end do  ! this is the j loop
-
+   end do  ! this is the j loop
+   !$OMP END DO
    
 !  LAST EQUATION  (last j from above+KU)    
     jj=(N-p)/(2*KU)       

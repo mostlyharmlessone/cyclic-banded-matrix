@@ -2,9 +2,9 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=50000 ! size of problem
-    INTEGER, PARAMETER :: KU=123   ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=123  ! for testing vs lapack version only
+    INTEGER, PARAMETER :: n=3000 ! size of problem
+    INTEGER, PARAMETER :: KU=15  ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=15  ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp) :: d(n,2),a(n),b(n),c(n),s(n,2),dd(n,2),z(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
