@@ -2,9 +2,9 @@
     
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=901          ! size of problem
-    INTEGER, PARAMETER :: KU=5             ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=5             ! for testing vs lapack version only
+    INTEGER, PARAMETER :: n=9          ! size of problem
+    INTEGER, PARAMETER :: KU=2             ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=0             ! for testing vs lapack version only
                                            ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv

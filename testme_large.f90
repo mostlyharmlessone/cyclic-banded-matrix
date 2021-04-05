@@ -2,9 +2,9 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=3000 ! size of problem
-    INTEGER, PARAMETER :: KU=15  ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=15  ! for testing vs lapack version only
+    INTEGER, PARAMETER :: n=9 ! size of problem
+    INTEGER, PARAMETER :: KU=2  ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=0  ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp) :: d(n,2),a(n),b(n),c(n),s(n,2),dd(n,2),z(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
@@ -19,7 +19,7 @@
    
     do i=-KU,KU                                ! generate AB in band-cyclic format
      do j=1,n
-      AB(i+KU+1,j)=20*(KU**2-(i)**2) !+ 5.*j/(1.0*n)
+      AB(i+KU+1,j)=20.0*(i)**2 + 5.*j/(1.0*n)  ! without the second term, can be ill-conditioned, eg N=9, KU=2 
       if (i == 0) then
        AB(i+KU+1,j)=AB(i+KU+1,j)+100           ! emphasize diagonal dominance
       end if
@@ -30,8 +30,8 @@
       endif
      end do
     end do
-
-    IF (N < 60000) then            ! take too long
+       
+    IF (N < 60000) then            ! takes too long
     if (KL > 0) then               ! convert AB banded to CD banded by brute force
     do i=1,n                       ! this will take O(n^2) time unfortunately
      do j=1,n
@@ -44,7 +44,7 @@
     end do
     endif
     ENDIF
-
+    
     do i=1,n
       s(i,1)=57.3*cos(40.0*i)        ! solution vectors
       s(i,2)=10*sin(5.0*i)         ! i and i**2 get too ill-conditioned with large n
@@ -53,7 +53,7 @@
 ! needs matrix multiplication for cyclic stored matrices
     dd=0
     do k=1,2 
-     do j=1,n               
+     do j=1,N               
       do i=-KU,KU
        dd(j,k)=dd(j,k)+AB(KU+1+i,j)*s(1+mod(N+i+j-1,N),k)
       end do
@@ -61,7 +61,7 @@
     end do
     
     d=dd
-    
+            
     IF (KU == 1) then                           ! store tridiagonal matrices in vector format
     a=AB(1,:)
     b=AB(2,:)

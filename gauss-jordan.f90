@@ -99,7 +99,7 @@
       B(index_row,1:NRHS)=B(index_col,1:NRHS)
       B(index_col,1:NRHS)=swap2(1:NRHS)    
     endif
-    pivot=A(index_col,index_col)  
+    pivot=A(index_col,index_col) 
     A(index_col,index_col)=1
     A(index_col,1:N)=A(index_col,1:N)/pivot       
     B(index_col,1:NRHS)=B(index_col,1:NRHS)/pivot
@@ -124,6 +124,6 @@
     swap(1:N)=A(1:N,index_row)
     A(1:N,index_row)=A(1:N,index_col)
     A(1:N,index_col)=swap(1:N)        
-   end do    
+   end do  
             
   END SUBROUTINE GaussJordan     

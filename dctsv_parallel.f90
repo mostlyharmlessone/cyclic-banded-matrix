@@ -1,10 +1,5 @@
      SUBROUTINE DCTSV( N, NRHS, DL, D, DU, B, LDB, INFO )
-     Use OMP_LIB
-     IMPLICIT NONE 
-!    needs these in ./bashrc
-!    OMP_NUM_THREADS=4;
-!    export OMP_NUM_THREADS
-  
+     IMPLICIT NONE   
 !      PURPOSE solves the cyclic/periodic tridiagonal system, see LAPACK routine DGTSV for comparison
 !      Copyright (c) 2021   Anthony M de Beus
        INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
@@ -102,31 +97,27 @@
        ud(2,1,0)=1 
        ue(:,0,:)=0   
 !     FIRST EQUATION ue(0) = (0,0)
-!     ALL BUT THE LAST EQUATION 
-!     CHANGED EVERYTHING TO A0 and U0 IN THIS SECTION 
-      !$OMP DO 
+!      ALL BUT THE LAST EQUATION  
        do j=1,(N-p)/2-1                                                   
-        DET=D(j)*D(1-j+N)+DL(j)*D(1-j+N)*ud(1,1,0)-& 
-            DL(j)*DU(1-j+N)*ud(1,2,0)*ud(2,1,0)+&       
+        DET=D(j)*D(1-j+N)+DL(j)*D(1-j+N)*ud(1,1,-1+j)-& 
+            DL(j)*DU(1-j+N)*ud(1,2,-1+j)*ud(2,1,-1+j)+&       
             D(j)*DU(1-j+N)*ud(2,2,-1+j)+&
-            DL(j)*DU(1-j+N)*ud(1,1,0)*ud(2,2,0)
+            DL(j)*DU(1-j+N)*ud(1,1,-1+j)*ud(2,2,-1+j)
         IF (DET /= 0) THEN
-         ud(1,1,j)=-((DU(j)*(D(1-j+N)+DU(1-j+N)*ud(2,2,0)))/DET)    
-         ud(1,2,j)=(DL(j)*DL(1-j+N)*ud(1,2,0))/DET                 
-         ud(2,1,j)=(DU(j)*DU(1-j+N)*ud(2,1,0))/DET                
-         ud(2,2,j)=-((DL(1-j+N)*(D(j)+DL(j)*ud(1,1,0)))/DET)
-         ue(1,j,1:NRHS)=(-DL(j)*(B(1-j+N,1:NRHS))*ud(1,2,0)+&             
-                (B(j,1:NRHS))*(D(1-j+N)+DU(1-j+N)*ud(2,2,0)))/DET
-         ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS))*(D(j)+DL(j)*ud(1,1,0))-&
-                DU(1-j+N)*(B(j,1:NRHS))*ud(2,1,0))/DET          
+         ud(1,1,j)=-((DU(j)*(D(1-j+N)+DU(1-j+N)*ud(2,2,-1+j)))/DET)    
+         ud(1,2,j)=(DL(j)*DL(1-j+N)*ud(1,2,-1+j))/DET                 
+         ud(2,1,j)=(DU(j)*DU(1-j+N)*ud(2,1,-1+j))/DET                
+         ud(2,2,j)=-((DL(1-j+N)*(D(j)+DL(j)*ud(1,1,-1+j)))/DET)
+         ue(1,j,1:NRHS)=(-DL(j)*(B(1-j+N,1:NRHS)-DU(1-j+N)*ue(2,-1+j,1:NRHS))*ud(1,2,-1+j)+&             
+                (B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*(D(1-j+N)+DU(1-j+N)*ud(2,2,-1+j)))/DET
+         ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DU(1-j+N)*ue(2,-1+j,1:NRHS))*(D(j)+DL(j)*ud(1,1,-1+j))-&
+                DU(1-j+N)*(B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*ud(2,1,-1+j))/DET          
         ELSE
          INFO=j
          CALL XERBLA( 'DCTSV ', INFO )
-!         RETURN
+         RETURN
         ENDIF                                                                                              
        end do 
-       !$OMP END DO
-
 !      LAST EQUATION 
        j=(N-p)/2
        if ( p == 0 ) then
