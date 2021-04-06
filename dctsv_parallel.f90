@@ -58,10 +58,11 @@
 !      ..
 !      .. Array Arguments ..
        REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * )  ! no output no LU factors
-       REAL(wp), INTENT(INOUT) :: B( LDB, * ) ! on entry RHS, on exit, solution
+       REAL(wp), INTENT(INOUT) :: B( LDB, * ) ! on entry RHS, on exit, solution 
 !      ..
+       REAL(wp) :: DM(N+mod(N,2)), DLM(N+mod(N,2)), DUM(N+mod(N,2))  ! padded versions
+       REAL(wp) :: BM( N+mod(N,2), NRHS )
        REAL(wp) :: ud(2,2,0:N/2+1),ue(2,0:N/2+1,NRHS),DET,X(NRHS),Y(NRHS)  !  ud is my set of matrices Aj ue is my vectors vj 
-       REAL(wp) :: ud0(2,2,0:N/2+1),ue0(2,0:N/2+1,NRHS),DET0
        INTEGER :: i,j,p  
 
 !      needed for f90+ calling of f77 routines
@@ -91,6 +92,19 @@
        IF( N.EQ.0 ) RETURN
 !      End INFO handling
        p=mod(N,2)
+!      padding out the matrix
+       M=N+p
+       do j=1,N
+        DM(j)=D(j)
+        DLM(j)=DL(j)
+        DUM(j)=DU(j)
+        BM(j,:)=B(j,:)
+       end do
+       do j=N,M
+        DM(j)=1
+        DLM(j)=0
+        DUM(j)=0
+       end do
               
 !      FIRST EQUATION ud(0)=((0,1),(1,0)
        ud(:,:,0)=0
@@ -98,17 +112,13 @@
        ud(2,1,0)=1 
        ue(:,0,:)=0   
 !     FIRST EQUATION ue(0) = (0,0)
+
 !      ALL BUT THE LAST EQUATION  
        do j=1,(N-p)/2-1                                                   
         DET=D(j)*D(1-j+N)+DL(j)*D(1-j+N)*ud(1,1,-1+j)-& 
             DL(j)*DU(1-j+N)*ud(1,2,-1+j)*ud(2,1,-1+j)+&       
             D(j)*DU(1-j+N)*ud(2,2,-1+j)+&
             DL(j)*DU(1-j+N)*ud(1,1,-1+j)*ud(2,2,-1+j)
-
-        DET0=D(j)*D(1-j+N)+DL(j)*D(1-j+N)*ud(1,1,0)-& 
-            DL(j)*DU(1-j+N)*ud(1,2,-1+j)*ud(2,1,0)+&       
-            D(j)*DU(1-j+N)*ud(2,2,0)+&
-            DL(j)*DU(1-j+N)*ud(1,1,-1+j)*ud(2,2,0)
 
 
         IF (DET /= 0) THEN
@@ -121,22 +131,6 @@
          ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DU(1-j+N)*ue(2,-1+j,1:NRHS))*(D(j)+DL(j)*ud(1,1,-1+j))-&
                 DU(1-j+N)*(B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*ud(2,1,-1+j))/DET    
 
-
-         ud0(1,1,j)=-((DU(j)*(D(1-j+N)+DU(1-j+N)*ud(2,2,0)))/DET0)    
-         ud0(1,2,j)=(DL(j)*DL(1-j+N)*ud(1,2,0))/DET0                 
-         ud0(2,1,j)=(DU(j)*DU(1-j+N)*ud(2,1,0))/DET0                
-         ud0(2,2,j)=-((DL(1-j+N)*(D(j)+DL(j)*ud(1,1,0)))/DET0)
-         ue0(1,j,1:NRHS)=(-DL(j)*(B(1-j+N,1:NRHS)-DU(1-j+N)*ue(2,0,1:NRHS))*ud(1,2,0)+&             
-                (B(j,1:NRHS)-DL(j)*ue(1,0,1:NRHS))*(D(1-j+N)+DU(1-j+N)*ud(2,2,0)))/DET0
-         ue0(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DU(1-j+N)*ue(2,0,1:NRHS))*(D(j)+DL(j)*ud(1,1,0))-&
-                DU(1-j+N)*(B(j,1:NRHS)-DL(j)*ue(1,0,1:NRHS))*ud(2,1,0))/DET0
-
-
-         write(*,*) ue(:,j,:)
-         write(*,*) ' '
-         write(*,*) ue0(:,j,:)
-
-         pause
       
         ELSE
          INFO=j
@@ -144,6 +138,7 @@
          RETURN
         ENDIF                                                                                              
        end do 
+
 !      LAST EQUATION 
        j=(N-p)/2
        if ( p == 0 ) then
@@ -154,10 +149,6 @@
             DL(j)*DU(1+j)*ud(1,2,-1+j)*ud(2,1,-1+j)+D(j)*DU(1+j)*ud(2,2,-1+j)+&
             DL(j)*DU(1+j)*ud(1,1,-1+j)*ud(2,2,-1+j) 
 
-        DET0=D(j)*D(1+j)-DL(1+j)*DU(j)+DL(j)*D(1+j)*ud(1,1,0)-&
-            DL(j)*DL(1+j)*ud(1,2,0)-DU(j)*DU(1+j)*ud(2,1,0)-&
-            DL(j)*DU(1+j)*ud(1,2,0)*ud(2,1,0)+D(j)*DU(1+j)*ud(2,2,0)+&
-            DL(j)*DU(1+j)*ud(1,1,0)*ud(2,2,0)
 
         IF (DET /= 0) THEN           
          ue(1,j,1:NRHS)=((B(1+j,1:NRHS)-DU(1+j)*ue(2,-1+j,1:NRHS))*(-DU(j)-DL(j)*ud(1,2,-1+j))+&
@@ -165,14 +156,7 @@
          ue(2,j,1:NRHS)=((B(1+j,1:NRHS)-DU(1+j)*ue(2,-1+j,1:NRHS))*(D(j)+DL(j)*ud(1,1,-1+j))+&
            (B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*(-DL(1+j)-DU(1+j)*ud(2,1,-1+j)))/DET
 
-         ue0(1,j,1:NRHS)=((B(1+j,1:NRHS)-DU(1+j)*ue(2,0,1:NRHS))*(-DU(j)-DL(j)*ud(1,2,0))+&
-           (B(j,1:NRHS)-DL(j)*ue(1,0,1:NRHS))*(D(1+j)+DU(1+j)*ud(2,2,0)))/DET0                 
-         ue0(2,j,1:NRHS)=((B(1+j,1:NRHS)-DU(1+j)*ue(2,0,1:NRHS))*(D(j)+DL(j)*ud(1,1,0))+&
-           (B(j,1:NRHS)-DL(j)*ue(1,0,1:NRHS))*(-DL(1+j)-DU(1+j)*ud(2,1,0)))/DET0
 
-         write(*,*) ue(:,j,:)
-         write(*,*) ' '
-         write(*,*) ue0(:,j,:)
 
          B(j,1:NRHS)=ue(1,j,1:NRHS)         
          B(j+1,1:NRHS)=ue(2,j,1:NRHS)                                                                        

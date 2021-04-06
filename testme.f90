@@ -25,14 +25,14 @@
       if (ABS(i - j) <= KU ) then  ! regular band
         aij(i,j)=500+3*i-2*j
         if (i > j) then
-        aij(i,j)=aij(i,j)+1        ! assymetry
+        aij(i,j)=aij(i,j)+1        ! asymmetry
        endif         
       endif
       if (KL == 0) then             ! add the off diagonal terms in KL == 0
        if (ABS(i - j) >= N-KU) then ! cyclic elements
         aij(i,j) = 20+i+2*j
         if (i > j) then
-         aij(i,j)=aij(i,j)*2        ! assymetry
+         aij(i,j)=aij(i,j)*2        ! asymmetry
         endif
        endif
       endif
@@ -100,7 +100,7 @@
     b=AB(2,:)
     c=AB(3,:)
     do i=1,n-1
-     a_short(i)=a(i+1)                                 !truncated "a" for dgtsv, don't have to truncate "c"
+     a_short(i)=a(i+1)                                 ! truncated "a" for dgtsv, don't have to truncate "c"
     end do
 
     call CPU_TIME(time_start)

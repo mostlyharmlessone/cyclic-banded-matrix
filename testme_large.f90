@@ -23,6 +23,9 @@
       if (i == 0) then
        AB(i+KU+1,j)=AB(i+KU+1,j)+100           ! emphasize diagonal dominance
       end if
+      if (i > KU) then
+       AB(i+KU+1,j)=AB(i+KU+1,j)+1.5           ! asymmetry
+      end if   
       if (KL == KU) then
       if ((i+j-1) /= mod(N+i+j-1,N)) then
         AB(i+KU+1,j)=0                         ! off diagonal elements zero for non-cyclic tests
@@ -47,7 +50,7 @@
     
     do i=1,n
       s(i,1)=57.3*cos(40.0*i)        ! solution vectors
-      s(i,2)=10*sin(5.0*i)         ! i and i**2 get too ill-conditioned with large n
+      s(i,2)=10*sin(5.0*i)           ! i and i**2 get too ill-conditioned with large n
     end do
 
 ! needs matrix multiplication for cyclic stored matrices
