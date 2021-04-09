@@ -130,17 +130,19 @@
         ENDIF 
          
         k=(N-p)/2-j+1
-        DETR=(udR(1,1,k)*udR(2,2,k)-udR(2,1,k)*udR(1,2,k))*DU(1-k+N)*DL(k)
+        DETR=udR(1,1,k)*udR(2,2,k)-udR(2,1,k)*udR(1,2,k)
                
         IF (DET /= 0) THEN
-         udR(1,1,k-1)=DU(1-k+N)*(D(k)+DU(k)*udR(2,2,k))/DETR    
-         udR(1,2,k-1)=-DU(1-k+N)*DL(1-k+N)*udR(1,2,k)/DETR                 
-         udR(2,1,k-1)=-DL(k)*DU(k)*udR(2,1,k)/DETR                
-         udR(2,2,k-1)=DL(k)*(D(k)+DL(1-k+N)*udR(1,1,k))/DETR                  
-         ueR(1,k-1,1:NRHS)=(B(k,1:NRHS)-ueR(1,k,1:NRHS)*(D(k)+DL(j)*udR(1,1,-1+k) )-&
-                                        ueR(2,k,1:NRHS)*DL(k)*udR(1,2,-1+k))/DL(k)
-         ueR(2,k-1,1:NRHS)=(B(k,1:NRHS)-ueR(2,k,1:NRHS)*(D(n-k+1)+DU(n-k+1)*udR(2,2,-1+k) )-&
-                                        ueR(1,k,1:NRHS)*DU(n-k+1)*udR(2,1,-1+k))/DU(n-k+1)  
+         udR(1,1,k-1)=-D(k)/DL(k)-(DU(k)/DL(k))*(udR(2,2,k)/DETR)  
+         udR(1,2,k-1)=(DU(k)/DL(k))*(udR(2,1,k)/DETR)  
+         udR(2,1,k-1)=(DL(1-k+N)/DU(1-k+N))*(udR(1,2,k)/DETR)                                 
+         udR(2,2,k-1)=-D(k)/DU(1-k+N)-(DL(1-k+N)/DU(1-k+N))*(udR(1,1,k)/DETR)
+                  
+         ueR(1,k-1,1:NRHS)=B(k,1:NRHS)/DL(k)-(ueR(1,k,1:NRHS)*udR(2,2,k)-&
+                           ueR(2,k,1:NRHS)*udR(2,1,k))*DU(j)/(DL(k)*DETR)
+
+         ueR(2,k-1,1:NRHS)=B(1-k+N,1:NRHS)/DU(1-k+N)-(ueR(1,k,1:NRHS)*udR(1,2,k)-&
+                           ueR(2,k,1:NRHS)*udR(1,1,k))*DL(1-k+N)/(DU(1-k+N)*DETR)
                                                                                                                             
         ELSE
          INFO=j
@@ -150,9 +152,11 @@
         
         write(*,*) 'j:',j        
         write(*,*) Transpose(ud(:,:,j))
+ !       write(*,*) ue(:,j,:)
         write(*,*) ' '
-        write(*,*) 'k:',k-1         
+        write(*,*) 'k,j(k):',k-1, (N-p)/2-k+1      
         write(*,*) Transpose(udR(:,:,k-1))
+ !       write(*,*) ueR(:,k-1,:)
         write(*,*) ' '        
         
                                                                                             
