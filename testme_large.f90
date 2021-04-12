@@ -23,7 +23,7 @@
       if (i == 0) then
        AB(i+KU+1,j)=AB(i+KU+1,j)+100           ! emphasize diagonal dominance
       end if
-      if (i > KU) then
+      if (i >= KU) then
        AB(i+KU+1,j)=AB(i+KU+1,j)+1.5           ! asymmetry
       end if   
       if (KL == KU) then
@@ -47,13 +47,18 @@
     end do
     endif
     ENDIF
-    
-    do i=1,n
-!      s(i,1)=57.3*cos(40.0*i)        ! solution vectors
-!      s(i,2)=10*sin(5.0*i)           ! i and i**2 get too ill-conditioned with large n
+
+    IF (N < 6000) then    
+     do i=1,n
+      s(i,1)=57.3*cos(40.0*i)        ! solution vectors
+      s(i,2)=10*sin(5.0*i)           ! i and i**2 get too ill-conditioned with large n
+     end do
+    else
+     do i=1,n
       s(i,1)=i                     ! solution vectors
-      s(i,2)=i**2    
-    end do
+      s(i,2)=i**2 
+     end do
+    endif  
 
 ! needs matrix multiplication for cyclic stored matrices
     dd=0
@@ -83,9 +88,8 @@
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
-    write(*,*) s
-    write(*,*) ' '
-    write(*,*) d
+
+!    write(*,*) d
 
 !    LAPACK routine for non-cyclic system    
      if (KL > 0) then   ! and KL == KU == 1 

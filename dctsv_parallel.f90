@@ -60,7 +60,7 @@
        REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * )  ! no output no LU factors
        REAL(wp), INTENT(INOUT) :: B( LDB, * ) ! on entry RHS, on exit, solution 
 !      ..
-
+       REAL(wp) :: udR(2,2,0:N/2+1),ueR(2,0:N/2+1,NRHS),udT(2,2,0:N/2+1)
        REAL(wp) :: ud(2,2,0:N/2+1),ue(2,0:N/2+1,NRHS),DET,X(NRHS),Y(NRHS)  !  ud is my set of matrices Aj ue is my vectors vj 
        INTEGER :: i,j,k,p  
 
@@ -92,17 +92,15 @@
 !      End INFO handling
        p=mod(N,2)
              
-!      FIRST EQUATION ud(0)=((0,1),(1,0)
+!      FIRST EQUATION ud(0)=((0,1),(1,0) & ue(0) = (0,0)
        ud(:,:,0)=0
        ud(1,2,0)=1
        ud(2,1,0)=1 
        ue(:,0,:)=0  
-       ud(:,:,(N-p)/2+1)=0
-       ud(1,2,(N-p)/2+1)=1
-       ud(2,1,(N-p)/2+1)=1 
-       ue(:,(N-p)/2+1,:)=0  
-              
-!     FIRST EQUATION ue(0) = (0,0)
+       udR(:,:,(N-p)/2+1)=0
+       udR(1,2,(N-p)/2+1)=1
+       udR(2,1,(N-p)/2+1)=1 
+       ueR(:,(N-p)/2+1,:)=0  
 
 !      ALL BUT THE LAST EQUATION  
        do j=1,(N-p)/2-1                                              
@@ -120,11 +118,32 @@
                 (B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*(D(1-j+N)+DU(1-j+N)*ud(2,2,-1+j)))/DET
          ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DU(1-j+N)*ue(2,-1+j,1:NRHS))*(D(j)+DL(j)*ud(1,1,-1+j))-&
                 DU(1-j+N)*(B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*ud(2,1,-1+j))/DET
-                                                  
-!        write(*,*) j
-!        write(*,*) Transpose(ud(:,:,j))
-!        write(*,*) ue(:,j,:)        
-                                                
+
+
+         k=(N-p)/2-j+1
+         DET=udR(1,1,k+1)*udR(2,2,k+1)-udR(2,1,k+1)*udR(1,2,k+1)
+         udR(1,1,k)=-D(k)/DL(k)-(DU(k)/DL(k))*(udR(2,2,k+1)/DET)  
+         udR(1,2,k)=(DU(k)/DL(k))*(udR(2,1,k+1)/DET)  
+         udR(2,1,k)=(DL(1-k+N)/DU(1-k+N))*(udR(1,2,k+1)/DET)                                 
+         udR(2,2,k)=-D(1-k+N)/DU(1-k+N)-(DL(1-k+N)/DU(1-k+N))*(udR(1,1,k+1)/DET)
+                  
+         ueR(1,k,1:NRHS)=B(k,1:NRHS)/DL(k)-(ueR(1,k,1:NRHS)*udR(2,2,k+1)-&
+                           ueR(2,k,1:NRHS)*udR(2,1,k+1))*DU(k)/(DL(k)*DET)
+
+         ueR(2,k,1:NRHS)=B(1-k+N,1:NRHS)/DU(1-k+N)-(ueR(1,k,1:NRHS)*udR(1,2,k+1)-&
+                           ueR(2,k,1:NRHS)*udR(1,1,k+1))*DL(1-k+N)/(DU(1-k+N)*DET)
+
+         DET=udR(1,1,k)*udR(2,2,k)-udR(2,1,k)*udR(1,2,k)
+         udT(1,1,k)=udR(2,2,k)/DET
+         udT(1,2,k)=-udR(1,2,k)/DET
+         udT(2,1,k)=-udR(2,1,k)/DET
+         udT(2,2,k)=udR(1,1,k)/DET
+
+
+        write(*,*) 'j,k',j,k
+        write(*,*) ud(:,:,j)
+        write(*,*) udT(:,:,k)
+                                                                                   
         ELSE
          INFO=j
          CALL XERBLA( 'DCTSV ', -INFO )

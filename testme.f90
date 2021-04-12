@@ -110,10 +110,7 @@
     write(*,*) 'time: ',time_end-time_start
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
-    write(*,*) ' '
-    write(*,*) s
-    write(*,*) ' '
-    write(*,*) d    
+    write(*,*) ' '  
 
 !    LAPACK routine for non-cyclic system    
      if (KL > 0) then   ! or KL == 1
