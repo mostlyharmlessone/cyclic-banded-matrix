@@ -92,7 +92,7 @@
 !      End INFO handling
        p=mod(N,2)
              
-!      FIRST EQUATION ud(0)=((0,1),(1,0)
+!      FIRST EQUATION ud(0)=((0,1),(1,0) & ue(0) = (0,0)
        ud(:,:,0)=0
        ud(1,2,0)=1
        ud(2,1,0)=1 
@@ -102,27 +102,26 @@
        ud(2,1,(N-p)/2+1)=1 
        ue(:,(N-p)/2+1,:)=0  
               
-!     FIRST EQUATION ue(0) = (0,0)
 
 !      ALL BUT THE LAST EQUATION  
-       do j=1,(N-p)/2-1                                              
-        DET=D(j)*D(1-j+N)+DL(j)*D(1-j+N)*ud(1,1,-1+j)-& 
-            DL(j)*DU(1-j+N)*ud(1,2,-1+j)*ud(2,1,-1+j)+&       
-            D(j)*DU(1-j+N)*ud(2,2,-1+j)+&
-            DL(j)*DU(1-j+N)*ud(1,1,-1+j)*ud(2,2,-1+j)
+       do j=(N-p)/2,2,-1                                              
+        DET=D(j)*D(1-j+N)+DU(j)*D(1-j+N)*ud(1,1,1+j)-& 
+            DU(j)*DL(1-j+N)*ud(1,2,1+j)*ud(2,1,1+j)+&       
+            D(j)*DL(1-j+N)*ud(2,2,1+j)+&
+            DU(j)*DL(1-j+N)*ud(1,1,1+j)*ud(2,2,1+j)
                                   
         IF (DET /= 0) THEN
-         ud(1,1,j)=-((DU(j)*(D(1-j+N)+DU(1-j+N)*ud(2,2,-1+j)))/DET)    
-         ud(1,2,j)=(DL(j)*DL(1-j+N)*ud(1,2,-1+j))/DET                 
-         ud(2,1,j)=(DU(j)*DU(1-j+N)*ud(2,1,-1+j))/DET                
-         ud(2,2,j)=-((DL(1-j+N)*(D(j)+DL(j)*ud(1,1,-1+j)))/DET)                                 
-         ue(1,j,1:NRHS)=(-DL(j)*(B(1-j+N,1:NRHS)-DU(1-j+N)*ue(2,-1+j,1:NRHS))*ud(1,2,-1+j)+&             
-                (B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*(D(1-j+N)+DU(1-j+N)*ud(2,2,-1+j)))/DET
-         ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DU(1-j+N)*ue(2,-1+j,1:NRHS))*(D(j)+DL(j)*ud(1,1,-1+j))-&
-                DU(1-j+N)*(B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*ud(2,1,-1+j))/DET
+         ud(1,1,j)=-((DL(j)*(D(1-j+N)+DL(1-j+N)*ud(2,2,1+j)))/DET)    
+         ud(1,2,j)=(DU(j)*DU(1-j+N)*ud(1,2,1+j))/DET                 
+         ud(2,1,j)=(DL(j)*DL(1-j+N)*ud(2,1,1+j))/DET                
+         ud(2,2,j)=-((DU(1-j+N)*(D(j)+DU(j)*ud(1,1,1+j)))/DET)                                 
+         ue(1,j,1:NRHS)=(-DU(j)*(B(1-j+N,1:NRHS)-DL(1-j+N)*ue(2,1+j,1:NRHS))*ud(1,2,1+j)+&             
+                (B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*(D(1-j+N)+DL(1-j+N)*ud(2,2,1+j)))/DET
+         ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DL(1-j+N)*ue(2,1+j,1:NRHS))*(D(j)+DU(j)*ud(1,1,1+j))-&
+                DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*ud(2,1,1+j))/DET
                                                   
-!        write(*,*) j
-!        write(*,*) Transpose(ud(:,:,j))
+        write(*,*) j
+        write(*,*) Transpose(ud(:,:,j))
 !        write(*,*) ue(:,j,:)        
                                                 
         ELSE
@@ -134,23 +133,23 @@
        end do
 
 !      LAST EQUATION 
-       j=(N-p)/2
+!      j=1
        if ( p == 0 ) then
 !      EVEN CASE (2x2) 
-!      NO ud(,,j); ue(,j) iS THE SOLUTION AT j,j+1  
-        DET=D(j)*D(1+j)-DL(1+j)*DU(j)+DL(j)*D(1+j)*ud(1,1,-1+j)-&
-            DL(j)*DL(1+j)*ud(1,2,-1+j)-DU(j)*DU(1+j)*ud(2,1,-1+j)-&
-            DL(j)*DU(1+j)*ud(1,2,-1+j)*ud(2,1,-1+j)+D(j)*DU(1+j)*ud(2,2,-1+j)+&
-            DL(j)*DU(1+j)*ud(1,1,-1+j)*ud(2,2,-1+j) 
+!      NO ud(,,j); ue(,1) iS THE SOLUTION AT 1,N  
+        DET=D(1)*D(N)-DU(N)*DL(1)+DU(1)*D(N)*ud(1,1,2)-&
+            DU(1)*DU(N)*ud(1,2,2)-DL(1)*DL(N)*ud(2,1,2)-&
+            DU(1)*DL(N)*ud(1,2,2)*ud(2,1,2)+D(1)*DL(N)*ud(2,2,2)+&
+            DU(1)*DL(N)*ud(1,1,2)*ud(2,2,2) 
 
         IF (DET /= 0) THEN           
-         ue(1,j,1:NRHS)=((B(1+j,1:NRHS)-DU(1+j)*ue(2,-1+j,1:NRHS))*(-DU(j)-DL(j)*ud(1,2,-1+j))+&
-           (B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*(D(1+j)+DU(1+j)*ud(2,2,-1+j)))/DET                 
-         ue(2,j,1:NRHS)=((B(1+j,1:NRHS)-DU(1+j)*ue(2,-1+j,1:NRHS))*(D(j)+DL(j)*ud(1,1,-1+j))+&
-           (B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*(-DL(1+j)-DU(1+j)*ud(2,1,-1+j)))/DET
-
-         B(j,1:NRHS)=ue(1,j,1:NRHS)         
-         B(j+1,1:NRHS)=ue(2,j,1:NRHS)                                                                        
+         ue(1,1,1:NRHS)=((B(N,1:NRHS)-DL(N)*ue(2,2,1:NRHS))*(-DL(1)-DU(1)*ud(1,2,2))+&
+           (B(1,1:NRHS)-DU(1)*ue(1,2,1:NRHS))*(D(N)+DL(N)*ud(2,2,2)))/DET                 
+         ue(2,1,1:NRHS)=((B(N,1:NRHS)-DL(N)*ue(2,2,1:NRHS))*(D(1)+DU(1)*ud(1,1,2))+&
+           (B(1,1:NRHS)-DU(1)*ue(1,2,1:NRHS))*(-DU(N)-DL(N)*ud(2,1,2)))/DET
+           
+         B(1,1:NRHS)=ue(1,1,1:NRHS)         
+         B(N,1:NRHS)=ue(2,2,1:NRHS)                                                                  
         ELSE
          INFO=j
          CALL XERBLA( 'DCTSV ', -INFO )
@@ -183,13 +182,13 @@
          CALL XERBLA( 'DCTSV ', -INFO )
          RETURN
         ENDIF                        
-        endif               
-!      BACKSUBSTITUTION B(j-1)=UE(j-1)+UD(:,:,j-1)*B(j)
-       do i=(N-p)/2-1,1,-1
-        B(i,1:NRHS)=    ue(1,i,1:NRHS)+ud(1,1,i)*B(i+1,1:NRHS)+ud(1,2,i)*B(N-i,1:NRHS)
-        B(N-i+1,1:NRHS)=ue(2,i,1:NRHS)+ud(2,1,i)*B(i+1,1:NRHS)+ud(2,2,i)*B(N-i,1:NRHS) 
+        endif  
+                     
+!      BACKSUBSTITUTION B(j+1)=UE(j+1)+UD(:,:,j+1)*B(j)
+       do i=1,(N-p)/2-1
+        B(i+1,1:NRHS)=ue(1,i+1,1:NRHS)+ud(1,1,i+1)*B(i,1:NRHS)+ud(1,2,i+1)*B(N-i+1,1:NRHS)
+        B(N-i,1:NRHS)=ue(2,i+1,1:NRHS)+ud(2,1,i+1)*B(i,1:NRHS)+ud(2,2,i+1)*B(N-i+1,1:NRHS) 
        end do
-
       
      end subroutine DCTSV
        

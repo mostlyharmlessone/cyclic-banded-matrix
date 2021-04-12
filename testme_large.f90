@@ -49,8 +49,10 @@
     ENDIF
     
     do i=1,n
-      s(i,1)=57.3*cos(40.0*i)        ! solution vectors
-      s(i,2)=10*sin(5.0*i)           ! i and i**2 get too ill-conditioned with large n
+!      s(i,1)=57.3*cos(40.0*i)        ! solution vectors
+!      s(i,2)=10*sin(5.0*i)           ! i and i**2 get too ill-conditioned with large n
+      s(i,1)=i                     ! solution vectors
+      s(i,2)=i**2    
     end do
 
 ! needs matrix multiplication for cyclic stored matrices
@@ -81,11 +83,14 @@
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
+    write(*,*) s
+    write(*,*) ' '
+    write(*,*) d
 
 !    LAPACK routine for non-cyclic system    
      if (KL > 0) then   ! and KL == KU == 1 
       IF (N < 60000) then
-      d=dd      
+      d=dd    
       call CPU_TIME(time_start)
       call DGTSV( n, 2, a_short, b, c, d, n, INFO )     ! overwrites d into solution
       call CPU_TIME(time_end)
@@ -95,16 +100,21 @@
       write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
       write(*,*) ' '
       ENDIF
+      
 !     simple tridiagonal algorithm: should be fastest with -O3 compilation
-      d=dd      
+      a=AB(1,:)
+      b=AB(2,:)
+      c=AB(3,:)
+      d=dd         
       call CPU_TIME(time_start)
-      call thomas(a,b,c,d,z,n,2)                        ! overwrites b and d, output is z     
+      call thomas(a,b,c,d,z,n,2)                        ! overwrites b and d, output is z           
       call CPU_TIME(time_end)
       write(*,*) 'Using thomas, O(n)'    
       write(*,*) 'time: ',time_end-time_start
       write(*,*) 'solution error',dot_product((s(:,1)-z(:,1)),(s(:,1)-z(:,1))) 
       write(*,*) 'solution error',dot_product((s(:,2)-z(:,2)),(s(:,2)-z(:,2)))
       write(*,*) ' '
+          
      endif
 
     ENDIF

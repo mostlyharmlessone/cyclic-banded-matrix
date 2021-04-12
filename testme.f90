@@ -2,11 +2,11 @@
     
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=9          ! size of problem
+    INTEGER, PARAMETER :: n=9         ! size of problem
     INTEGER, PARAMETER :: KU=2             ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0             ! for testing vs lapack version only
                                            ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
-    REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2)
+    REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: CD(2*KL+KU+1,n)                  ! CD(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: a_short(n-1)                     ! truncated a() for dgtsv
@@ -111,12 +111,15 @@
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
+    write(*,*) s
+    write(*,*) ' '
+    write(*,*) d    
 
 !    LAPACK routine for non-cyclic system    
      if (KL > 0) then   ! or KL == 1
       d=matmul(aij,s)       
       call CPU_TIME(time_start)
-      call DGTSV( n, 2, a_short, b, c, d, n, INFO )     ! overwrites d into solution
+      call DGTSV( n, 2, a_short, b, c, d, n, INFO )     ! overwrites b and d into solution
       call CPU_TIME(time_end)
       write(*,*) 'Using dgtsv, O(n)'    
       write(*,*) 'time: ',time_end-time_start
@@ -124,7 +127,21 @@
       write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
       write(*,*) ' '
      endif
-
+     
+!     simple tridiagonal algorithm: should be fastest with -O3 compilation
+      a=AB(1,:)
+      b=AB(2,:)
+      c=AB(3,:)
+      d=matmul(aij,s)        
+      call CPU_TIME(time_start)
+      call thomas(a,b,c,d,z,n,2)                        ! overwrites b and d, output is z           
+      call CPU_TIME(time_end)
+      write(*,*) 'Using thomas, O(n)'    
+      write(*,*) 'time: ',time_end-time_start
+      write(*,*) 'solution error',dot_product((s(:,1)-z(:,1)),(s(:,1)-z(:,1))) 
+      write(*,*) 'solution error',dot_product((s(:,2)-z(:,2)),(s(:,2)-z(:,2)))
+      write(*,*) ' '
+         
     ENDIF
 
     d=matmul(aij,s)
