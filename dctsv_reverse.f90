@@ -121,10 +121,7 @@
          ue(1,j,1:NRHS)=(-DU(j)*(B(1-j+N,1:NRHS)-DL(1-j+N)*ue(2,1+j,1:NRHS))*ud(1,2,1+j)+&             
                 (B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*(D(1-j+N)+DL(1-j+N)*ud(2,2,1+j)))/DET
          ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DL(1-j+N)*ue(2,1+j,1:NRHS))*(D(j)+DU(j)*ud(1,1,1+j))-&
-                DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*ud(2,1,1+j))/DET 
-
-        write(*,*) 'j',j
-        write(*,*) ud(:,:,j)  
+                DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*ud(2,1,1+j))/DET  
                                                 
         ELSE
          INFO=j

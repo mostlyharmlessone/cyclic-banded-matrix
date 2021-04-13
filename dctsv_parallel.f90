@@ -159,15 +159,15 @@
          k=j
          DET=udT(1,1,k+1)*udT(2,2,k+1)-udT(2,1,k+1)*udT(1,2,k+1)
          udT(1,1,k)=-D(k)/DL(k)-(DU(k)/DL(k))*(udT(2,2,k+1)/DET)  
-         udT(1,2,k)=(DU(k)/DL(k))*(udT(2,1,k+1)/DET)  
-         udT(2,1,k)=(DL(1-k+N)/DU(1-k+N))*(udT(1,2,k+1)/DET)                                 
+         udT(1,2,k)=(DU(k)/DL(k))*(udT(1,2,k+1)/DET)  
+         udT(2,1,k)=(DL(1-k+N)/DU(1-k+N))*(udT(2,1,k+1)/DET)                                 
          udT(2,2,k)=-D(1-k+N)/DU(1-k+N)-(DL(1-k+N)/DU(1-k+N))*(udT(1,1,k+1)/DET)
                   
-         ueT(1,k,1:NRHS)=B(k,1:NRHS)/DL(k)-(ueT(1,k,1:NRHS)*udT(2,2,k+1)-&
-                           ueT(2,k,1:NRHS)*udT(2,1,k+1))*DU(k)/(DL(k)*DET)
+         ueT(1,k,1:NRHS)=B(k,1:NRHS)/DL(k)+(ueT(1,k+1,1:NRHS)*udT(2,2,k+1)-&
+                           ueT(2,k+1,1:NRHS)*udT(1,2,k+1))*DU(k)/(DL(k)*DET)
 
-         ueT(2,k,1:NRHS)=B(1-k+N,1:NRHS)/DU(1-k+N)-(ueT(1,k,1:NRHS)*udT(1,2,k+1)-&
-                           ueT(2,k,1:NRHS)*udT(1,1,k+1))*DL(1-k+N)/(DU(1-k+N)*DET)
+         ueT(2,k,1:NRHS)=B(1-k+N,1:NRHS)/DU(1-k+N)-(ueT(1,k+1,1:NRHS)*udT(2,1,k+1)+&
+                           ueT(2,k+1,1:NRHS)*udT(1,1,k+1))*DL(1-k+N)/(DU(1-k+N)*DET)
 
   
                                                
