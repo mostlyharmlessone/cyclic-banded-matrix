@@ -121,7 +121,7 @@
          ue(1,j,1:NRHS)=(-DU(j)*(B(1-j+N,1:NRHS)-DL(1-j+N)*ue(2,1+j,1:NRHS))*ud(1,2,1+j)+&             
                 (B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*(D(1-j+N)+DL(1-j+N)*ud(2,2,1+j)))/DET
          ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DL(1-j+N)*ue(2,1+j,1:NRHS))*(D(j)+DU(j)*ud(1,1,1+j))-&
-                DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*ud(2,1,1+j))/DET     
+                DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*ud(2,1,1+j))/DET 
 
         write(*,*) 'j',j
         write(*,*) ud(:,:,j)  
@@ -158,6 +158,8 @@
          RETURN
         ENDIF       
         else
+        write(*,*) 'Only works for even N'
+        stop
 !       ODD CASE (3x3)
 !       NO ud(,,j); B(j ETC.) iS THE SOLUTION AT j,j+1,j+2 started at (N-1)/2,(N+3)/2 eg 4,6 for N=9
         DET=D(j)*D(1+j)*D(2+j)-DU(1+j)*D(2+j)*DL(j)-DU(2+j)*D(j)*DL(1+j)+&           
@@ -191,6 +193,7 @@
         B(i+1,1:NRHS)=ue(1,i+1,1:NRHS)+ud(1,1,i+1)*B(i,1:NRHS)+ud(1,2,i+1)*B(N-i+1,1:NRHS)
         B(N-i,1:NRHS)=ue(2,i+1,1:NRHS)+ud(2,1,i+1)*B(i,1:NRHS)+ud(2,2,i+1)*B(N-i+1,1:NRHS) 
        end do
+
       
      end subroutine DCTSV
        
