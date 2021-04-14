@@ -148,28 +148,26 @@
          ueR(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DL(1-j+N)*ueR(2,1+j,1:NRHS))*(D(j)+DU(j)*udR(1,1,1+j))-&
                 DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ueR(1,1+j,1:NRHS))*udR(2,1,1+j))/DET
 
-!         DET=udR(1,1,j)*udR(2,2,j)-udR(2,1,j)*udR(1,2,j)
-!         udT(1,1,j)=udR(2,2,j)/DET
-!         udT(1,2,j)=-udR(1,2,j)/DET
-!         udT(2,1,j)=-udR(2,1,j)/DET
-!         udT(2,2,j)=udR(1,1,j)/DET
-!         ueT(1,j,1:NRHS)=-udT(1,1,j)*ueR(1,j,1:NRHS)-udT(1,2,j)*ueR(2,j,1:NRHS)
-!         ueT(2,j,1:NRHS)=-udT(2,1,j)*ueR(1,j,1:NRHS)-udT(2,2,j)*ueR(2,j,1:NRHS)
+         DET=udR(1,1,j)*udR(2,2,j)-udR(2,1,j)*udR(1,2,j)
+         udT(1,1,j)=udR(2,2,j)/DET
+         udT(1,2,j)=-udR(1,2,j)/DET
+         udT(2,1,j)=-udR(2,1,j)/DET
+         udT(2,2,j)=udR(1,1,j)/DET
+         ueT(1,j,1:NRHS)=-udT(1,1,j)*ueR(1,j,1:NRHS)-udT(1,2,j)*ueR(2,j,1:NRHS)
+         ueT(2,j,1:NRHS)=-udT(2,1,j)*ueR(1,j,1:NRHS)-udT(2,2,j)*ueR(2,j,1:NRHS)
 
-         k=j
-         DET=udT(1,1,k+1)*udT(2,2,k+1)-udT(2,1,k+1)*udT(1,2,k+1)
-         udT(1,1,k)=-D(k)/DL(k)-(DU(k)/DL(k))*(udT(2,2,k+1)/DET)  
-         udT(1,2,k)=(DU(k)/DL(k))*(udT(1,2,k+1)/DET)  
-         udT(2,1,k)=(DL(1-k+N)/DU(1-k+N))*(udT(2,1,k+1)/DET)                                 
-         udT(2,2,k)=-D(1-k+N)/DU(1-k+N)-(DL(1-k+N)/DU(1-k+N))*(udT(1,1,k+1)/DET)
+!         k=j
+!         DET=udT(1,1,k+1)*udT(2,2,k+1)-udT(2,1,k+1)*udT(1,2,k+1)
+!         udT(1,1,k)=-D(k)/DL(k)-(DU(k)/DL(k))*(udT(2,2,k+1)/DET)  
+!         udT(1,2,k)=(DU(k)/DL(k))*(udT(1,2,k+1)/DET)  
+!         udT(2,1,k)=(DL(1-k+N)/DU(1-k+N))*(udT(2,1,k+1)/DET)                                 
+!         udT(2,2,k)=-D(1-k+N)/DU(1-k+N)-(DL(1-k+N)/DU(1-k+N))*(udT(1,1,k+1)/DET)
                   
-         ueT(1,k,1:NRHS)=B(k,1:NRHS)/DL(k)+(ueT(1,k+1,1:NRHS)*udT(2,2,k+1)-&
-                           ueT(2,k+1,1:NRHS)*udT(1,2,k+1))*DU(k)/(DL(k)*DET)
+!         ueT(1,k,1:NRHS)=B(k,1:NRHS)/DL(k)+(ueT(1,k+1,1:NRHS)*udT(2,2,k+1)-&
+!                           ueT(2,k+1,1:NRHS)*udT(1,2,k+1))*DU(k)/(DL(k)*DET)
 
-         ueT(2,k,1:NRHS)=B(1-k+N,1:NRHS)/DU(1-k+N)-(ueT(1,k+1,1:NRHS)*udT(2,1,k+1)+&
-                           ueT(2,k+1,1:NRHS)*udT(1,1,k+1))*DL(1-k+N)/(DU(1-k+N)*DET)
-
-  
+!         ueT(2,k,1:NRHS)=B(1-k+N,1:NRHS)/DU(1-k+N)-(ueT(1,k+1,1:NRHS)*udT(2,1,k+1)-&
+!                           ueT(2,k+1,1:NRHS)*udT(1,1,k+1))*DL(1-k+N)/(DU(1-k+N)*DET)  
                                                
         ELSE
          INFO=j
