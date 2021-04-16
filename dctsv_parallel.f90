@@ -238,6 +238,12 @@
         B(i,1:NRHS)=    ueT(1,i+1,1:NRHS)+udT(1,1,i+1)*B(i+1,1:NRHS)+udT(1,2,i+1)*B(N-i,1:NRHS)
         B(N-i+1,1:NRHS)=ueT(2,i+1,1:NRHS)+udT(2,1,i+1)*B(i+1,1:NRHS)+udT(2,2,i+1)*B(N-i,1:NRHS) 
        end do
+
+!      they're not identical transforms; only for these particular B
+       do i=(N-p)/2-1,1,-1
+        write(*,*) ueT(1,i+1,1:NRHS)+udT(1,1,i+1)*i+udT(1,2,i+1)*(2*i)
+        write(*,*) ue(1,i+1,1:NRHS) +ud(1,1,i+1)*i  +ud(1,2,i+1)*(2*i)
+       end do
       
      end subroutine DCTSV
        
