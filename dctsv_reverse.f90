@@ -1,5 +1,6 @@
      SUBROUTINE DCTSV( N, NRHS, DL, D, DU, B, LDB, INFO )
-     IMPLICIT NONE   
+     IMPLICIT NONE
+!      THIS VERSION RUNS IN REVERSE  
 !      PURPOSE solves the cyclic/periodic tridiagonal system, see LAPACK routine DGTSV for comparison
 !      Copyright (c) 2021   Anthony M de Beus
        INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
@@ -92,19 +93,20 @@
 !      End INFO handling
        p=mod(N,2)
              
-!      FIRST EQUATION ud(0)=((0,1),(1,0) & ue(0) = (0,0)
-       ud(:,:,0)=0
-       ud(1,2,0)=1
-       ud(2,1,0)=1 
-       ue(:,0,:)=0  
-       ud(:,:,(N-p)/2+1)=0
-       ud(1,2,(N-p)/2+1)=1
-       ud(2,1,(N-p)/2+1)=1 
-       ue(:,(N-p)/2+1,:)=0  
-       udR(:,:,(N-p)/2+1)=0
-       udR(1,2,(N-p)/2+1)=1
-       udR(2,1,(N-p)/2+1)=1 
-       ueR(:,(N-p)/2+1,:)=0 
+!      FIRST EQUATION ud(0)=((0,1),(1,0) & ue(0) = (0,0) when p==0
+       if (p == 0) then 
+        ud(:,:,N/2+1)=0
+        ud(1,2,N/2+1)=1
+        ud(2,1,N/2+1)=1 
+        ue(:,N/2+1,:)=0  
+       else
+        ud(1,1,(N+1)/2)=-DL((N+1)/2)/D((N+1)/2)
+        ud(1,2,(N+1)/2)=-DU((N+1)/2)/D((N+1)/2)
+        ud(2,1,(N+1)/2)=-DL((N+1)/2)/D((N+1)/2)
+        ud(2,2,(N+1)/2)=-DU((N+1)/2)/D((N+1)/2)
+        ue(1,(N+1)/2,1:NRHS)=B((N+1)/2,1:NRHS)/D((N+1)/2)
+        ue(2,(N+1)/2,1:NRHS)=B((N+1)/2,1:NRHS)/D((N+1)/2)                            
+       endif 
               
 !      ALL BUT THE LAST EQUATION  
        do j=(N-p)/2,2,-1                                              
@@ -121,20 +123,15 @@
          ue(1,j,1:NRHS)=(-DU(j)*(B(1-j+N,1:NRHS)-DL(1-j+N)*ue(2,1+j,1:NRHS))*ud(1,2,1+j)+&             
                 (B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*(D(1-j+N)+DL(1-j+N)*ud(2,2,1+j)))/DET
          ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DL(1-j+N)*ue(2,1+j,1:NRHS))*(D(j)+DU(j)*ud(1,1,1+j))-&
-                DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*ud(2,1,1+j))/DET  
-                                                
+                DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*ud(2,1,1+j))/DET                                                  
         ELSE
          INFO=j
          CALL XERBLA( 'DCTSV ', -INFO )
          RETURN
-        ENDIF 
-                                                                                                          
+        ENDIF                                                                                                           
        end do
 
 !      LAST EQUATION 
-!      j=1
-       if ( p == 0 ) then
-!      EVEN CASE (2x2) 
 !      NO ud(,,j); ue(,1) iS THE SOLUTION AT 1,N  
         DET=D(1)*D(N)-DU(N)*DL(1)+DU(1)*D(N)*ud(1,1,2)-&
             DU(1)*DU(N)*ud(1,2,2)-DL(1)*DL(N)*ud(2,1,2)-&
@@ -153,44 +150,18 @@
          INFO=j
          CALL XERBLA( 'DCTSV ', -INFO )
          RETURN
-        ENDIF       
-        else
-        write(*,*) 'Only works for even N'
-        stop
-!       ODD CASE (3x3)
-!       NO ud(,,j); B(j ETC.) iS THE SOLUTION AT j,j+1,j+2 started at (N-1)/2,(N+3)/2 eg 4,6 for N=9
-        DET=D(j)*D(1+j)*D(2+j)-DU(1+j)*D(2+j)*DL(j)-DU(2+j)*D(j)*DL(1+j)+&           
-            DU(j)*D(1+j)*D(2+j)*ud(1,1,-1+j)-DU(j)*DU(2+j)*DL(1+j)*ud(1,1,-1+j)+&
-            DU(j)*DU(1+j)*DU(2+j)*ud(1,2,-1+j)+DL(j)*DL(1+j)*DL(2+j)*ud(2,1,-1+j)-&
-            DU(j)*D(1+j)*DL(2+j)*ud(1,2,-1+j)*ud(2,1,-1+j)+D(j)*D(1+j)*DL(2+j)*ud(2,2,-1+j)-&
-            DU(1+j)*DL(j)*DL(2+j)*ud(2,2,-1+j)+DU(j)*D(1+j)*DL(2+j)*ud(1,1,-1+j)*ud(2,2,-1+j)
-        IF (DET /= 0) THEN  
-         X(1:NRHS)=((B(2+j,1:NRHS)-DL(2+j)*ue(2,-1+j,1:NRHS))*(DL(j)*DL(1+j)-DU(j)*D(1+j)*ud(1,2,-1+j))+&                  
-                (B(j,1:NRHS)-DU(j)*ue(1,-1+j,1:NRHS))*(D(1+j)*D(2+j)-DU(2+j)*DL(1+j)+D(1+j)*DL(2+j)*ud(2,2,-1+j))+&
-                 B(1+j,1:NRHS)*(-D(2+j)*DL(j)+DU(j)*DU(2+j)*ud(1,2,-1+j))+B(1+j,1:NRHS)*(-DL(j)*DL(2+j)*ud(2,2,-1+j)))/DET 
-         Y(1:NRHS)=((B(2+j,1:NRHS)-DL(2+j)*ue(2,-1+j,1:NRHS))*(D(j)*D(1+j)-DU(1+j)*DL(j)+DU(j)*D(1+j)*ud(1,1,-1+j))+& 
-                (B(j,1:NRHS)-DU(j)*ue(1,-1+j,1:NRHS))*(DU(1+j)*DU(2+j)-D(1+j)*DL(2+j)*ud(2,1,-1+j))+&
-                 B(1+j,1:NRHS)*(-DU(2+j)*D(j)-DU(j)*DU(2+j)*ud(1,1,-1+j)+DL(j)*DL(2+j)*ud(2,1,-1+j)))/DET
-         B(j+1,1:NRHS)=((B(2+j,1:NRHS)-DL(2+j)*ue(2,-1+j,1:NRHS))*(-D(j)*DL(1+j)-DU(j)*DL(1+j)*ud(1,1,-1+j)+&
-                 DU(j)*DU(1+j)*ud(1,2,-1+j))+(B(j,1:NRHS)-DU(j)*ue(1,-1+j,1:NRHS))*(-DU(1+j)*D(2+j)+&
-                 DL(1+j)*DL(2+j)*ud(2,1,-1+j)-DU(1+j)*DL(2+j)*ud(2,2,-1+j))+&
-                 B(1+j,1:NRHS)*(D(j)*D(2+j)+DU(j)*D(2+j)*ud(1,1,-1+j)-DU(j)*DL(2+j)*ud(1,2,-1+j)*&
-                 ud(2,1,-1+j)+D(j)*DL(2+j)*ud(2,2,-1+j)+DU(j)*DL(2+j)*ud(1,1,-1+j)*ud(2,2,-1+j)))/DET                
-         B(j,1:NRHS)=X(1:NRHS)
-         B(j+2,1:NRHS)=Y(1:NRHS)                                                                       
-        ELSE
-         INFO=j
-         CALL XERBLA( 'DCTSV ', -INFO )
-         RETURN
-        ENDIF                        
-        endif  
-                     
+        ENDIF        
+           
 !      BACKSUBSTITUTION B(j+1)=UE(j+1)+UD(:,:,j+1)*B(j)
        do i=1,(N-p)/2-1
         B(i+1,1:NRHS)=ue(1,i+1,1:NRHS)+ud(1,1,i+1)*B(i,1:NRHS)+ud(1,2,i+1)*B(N-i+1,1:NRHS)
         B(N-i,1:NRHS)=ue(2,i+1,1:NRHS)+ud(2,1,i+1)*B(i,1:NRHS)+ud(2,2,i+1)*B(N-i+1,1:NRHS) 
        end do
-
-      
+       if (p /=0) then  ! take the average for the middle value
+        i=(N-p)/2
+        B(i+1,1:NRHS)=(ue(1,i+1,1:NRHS)+ud(1,1,i+1)*B(i,1:NRHS)+ud(1,2,i+1)*B(N-i+1,1:NRHS)+&
+                       ue(2,i+1,1:NRHS)+ud(2,1,i+1)*B(i,1:NRHS)+ud(2,2,i+1)*B(N-i+1,1:NRHS))/2 
+       endif
+    
      end subroutine DCTSV
        
