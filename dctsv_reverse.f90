@@ -61,8 +61,7 @@
        REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * )  ! no output no LU factors
        REAL(wp), INTENT(INOUT) :: B( LDB, * ) ! on entry RHS, on exit, solution 
 !      ..
-       REAL(wp) :: udR(2,2,0:N/2+1),ueR(2,0:N/2+1,NRHS),udT(2,2,0:N/2+1)
-       REAL(wp) :: ud(2,2,0:N/2+1),ue(2,0:N/2+1,NRHS),DET,X(NRHS),Y(NRHS)  !  ud is my set of matrices Aj ue is my vectors vj 
+       REAL(wp) :: ud(2,2,0:N/2+1),ue(2,0:N/2+1,NRHS),DET  !  ud is my set of matrices Aj ue is my vectors vj 
        INTEGER :: i,j,k,p  
 
 !      needed for f90+ calling of f77 routines
@@ -93,19 +92,26 @@
 !      End INFO handling
        p=mod(N,2)
              
-!      FIRST EQUATION ud(0)=((0,1),(1,0) & ue(0) = (0,0) when p==0
+!      FIRST EQUATION 
+!       ud(0)=((0,1),(1,0) & ue(0) = (0,0) when p==0
        if (p == 0) then 
         ud(:,:,N/2+1)=0
         ud(1,2,N/2+1)=1
         ud(2,1,N/2+1)=1 
         ue(:,N/2+1,:)=0  
        else
+        if ( D((N+1)/2) /= 0) then
         ud(1,1,(N+1)/2)=-DL((N+1)/2)/D((N+1)/2)
         ud(1,2,(N+1)/2)=-DU((N+1)/2)/D((N+1)/2)
         ud(2,1,(N+1)/2)=-DL((N+1)/2)/D((N+1)/2)
         ud(2,2,(N+1)/2)=-DU((N+1)/2)/D((N+1)/2)
         ue(1,(N+1)/2,1:NRHS)=B((N+1)/2,1:NRHS)/D((N+1)/2)
-        ue(2,(N+1)/2,1:NRHS)=B((N+1)/2,1:NRHS)/D((N+1)/2)                            
+        ue(2,(N+1)/2,1:NRHS)=B((N+1)/2,1:NRHS)/D((N+1)/2) 
+        else
+         INFO=(N+1)/2
+         CALL XERBLA( 'DCTSV ', -INFO )
+         RETURN
+        endif                           
        endif 
               
 !      ALL BUT THE LAST EQUATION  

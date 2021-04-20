@@ -2,7 +2,7 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=2501 ! size of problem
+    INTEGER, PARAMETER :: n=15 ! size of problem
     INTEGER, PARAMETER :: KU=1  ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0  ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
@@ -89,7 +89,7 @@
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
 
-!    write(*,*) d(:,1)
+    write(*,*) d(:,1)
 
 !    LAPACK routine for non-cyclic system    
      if (KL > 0) then   ! and KL == KU == 1 
