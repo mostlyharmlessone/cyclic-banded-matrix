@@ -92,6 +92,7 @@
 !      End INFO handling
        p=mod(N,2)
        L=(N-p)/2
+       L=1
              
 !      FIRST EQUATION ud(0)=((0,1),(1,0) & ue(0) = (0,0)
        ud(:,:,0)=0
@@ -169,7 +170,7 @@
 
 
 !      LAST EQUATIONS for both is at L
-       j=L       
+       j=L    
 !      B(j)=Inverse[IDENT-matmul(udR(:,:,j),ud(:,:,j-1))][udR(:,:,j)*ue(j-1)+ueR(j)]
               
        DET=(1-udR(1,1,j)*ud(1,1,j-1)-udR(1,2,j)*ud(2,1,j-1))*&
@@ -195,7 +196,8 @@
                (udR(2,1,j)*ud(1,1,j-1)+udR(2,2,j)*ud(2,1,j-1))*(udR(1,1,j)*ue(1,j-1,1:NRHS)&
                +udR(1,2,j)*ue(2,j-1,1:NRHS)+ ueR(1,j,1:NRHS)))/DET
 
-         B(j-1,1:NRHS) = ((1-ud(2,1,j-1)*udR(1,2,j)-ud(2,2,j-1)*udR(2,2,j))*&
+        if (L > 1 ) then 
+        B(j-1,1:NRHS) = ((1-ud(2,1,j-1)*udR(1,2,j)-ud(2,2,j-1)*udR(2,2,j))*&
                (ud(1,1,j-1)*ueR(1,j,1:NRHS)+ud(1,2,j-1)*ueR(2,j,1:NRHS)+ ue(1,j-1,1:NRHS))+&
                (ud(1,1,j-1)*udR(1,2,j)+ud(1,2,j-1)*udR(2,2,j))*(ud(2,1,j-1)*ueR(1,j,1:NRHS)&
                +ud(2,2,j-1)*ueR(2,j,1:NRHS)+ ue(2,j-1,1:NRHS)))/DET2        
@@ -204,7 +206,8 @@
                (ud(2,1,j-1)*ueR(1,j,1:NRHS)+ud(2,2,j-1)*ueR(2,j,1:NRHS)+ ue(2,j-1,1:NRHS))+&
                (ud(2,1,j-1)*udR(1,1,j)+ud(2,2,j-1)*udR(2,1,j))*(ud(1,1,j-1)*ueR(1,j,1:NRHS)&
                +ud(1,2,j-1)*ueR(2,j,1:NRHS)+ ue(1,j-1,1:NRHS)))/DET2
-                                                                       
+         endif
+                                                              
         ELSE
 
          INFO=j
@@ -221,8 +224,8 @@
 
 !      BACKSUBSTITUTION B(j+1)=UER(j+1)+UDR(:,:,j+1)*B(j)
        do i=L,(N-p)/2-1
-        B(i+1,1:NRHS)=ueR(1,i+1,1:NRHS)+udR(1,1,i+1)*B(i,1:NRHS)+udR(1,2,i+1)*B(N-i+1,1:NRHS)
-        B(N-i,1:NRHS)=ueR(2,i+1,1:NRHS)+udR(2,1,i+1)*B(i,1:NRHS)+udR(2,2,i+1)*B(N-i+1,1:NRHS) 
+!        B(i+1,1:NRHS)=ueR(1,i+1,1:NRHS)+udR(1,1,i+1)*B(i,1:NRHS)+udR(1,2,i+1)*B(N-i+1,1:NRHS)
+!        B(N-i,1:NRHS)=ueR(2,i+1,1:NRHS)+udR(2,1,i+1)*B(i,1:NRHS)+udR(2,2,i+1)*B(N-i+1,1:NRHS) 
        end do
 
        if (p /=0) then  ! take the average for the middle value
