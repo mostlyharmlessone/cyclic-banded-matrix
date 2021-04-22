@@ -1,4 +1,5 @@
      SUBROUTINE DCTSV( N, NRHS, DL, D, DU, B, LDB, INFO )
+     USE OMP_LIB
      IMPLICIT NONE   
 !      PURPOSE solves the cyclic/periodic tridiagonal system, see LAPACK routine DGTSV for comparison
 !      Copyright (c) 2021   Anthony M de Beus
@@ -61,7 +62,7 @@
        REAL(wp), INTENT(INOUT) :: B( LDB, * ) ! on entry RHS, on exit, solution 
 !      ..
        REAL(wp) :: udR(2,2,0:N/2+1),ueR(2,0:N/2+1,NRHS),DET2  ! udR is my set of matrices Aj(bar) ueR is my vectors vj(bar)
-       REAL(wp) :: ud(2,2,0:N/2+1),ue(2,0:N/2+1,NRHS),DET,X(NRHS),Y(NRHS)  !  ud is my set of matrices Aj ue is my vectors vj 
+       REAL(wp) :: ud(2,2,0:N/2+1),ue(2,0:N/2+1,NRHS),DET     !  ud is my set of matrices Aj ue is my vectors vj 
        INTEGER :: i,j,k,p,L  
 
 !      needed for f90+ calling of f77 routines
@@ -120,7 +121,12 @@
          RETURN
         endif                           
        endif 
-  
+
+!$OMP PARALLEL num_threads(2)
+
+!call forward(N, NRHS, DL, D, DU, B, LDB, INFO, UD, UE)
+!call backward(N, NRHS, DL, D, DU, B, LDB, INFO, UDR, UER)
+
 !      ALL BUT THE LAST EQUATION  
        do j=1,L                                                                                   
         DET=D(j)*D(1-j+N)+DL(j)*D(1-j+N)*ud(1,1,-1+j)-& 
@@ -139,7 +145,7 @@
         ELSE
          INFO=j
          CALL XERBLA( 'DCTSV ', INFO )
-         RETURN
+!         RETURN
         ENDIF                                                                                              
        end do
 
@@ -162,10 +168,11 @@
         ELSE
          INFO=j
          CALL XERBLA( 'DCTSV ', -INFO )
-         RETURN
+!         RETURN
         ENDIF                                                                                                           
        end do
 
+!$OMP END PARALLEL
 
 !      LAST EQUATIONS for both is at L
        j=L    
@@ -235,4 +242,8 @@
        endif
       
      end subroutine DCTSV
+
+
+
+
        
