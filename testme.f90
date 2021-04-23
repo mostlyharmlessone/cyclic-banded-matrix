@@ -2,9 +2,9 @@
     
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=9         ! size of problem
-    INTEGER, PARAMETER :: KU=2             ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=0             ! for testing vs lapack version only
+    INTEGER, PARAMETER :: n=1501           ! size of problem
+    INTEGER, PARAMETER :: KU=2            ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=0            ! for testing vs lapack version only
                                            ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
@@ -37,9 +37,20 @@
        endif
       endif
      end do
+     end do  
+      
+    IF (N > 500) then    
+     do i=1,n
+      s(i,1)=57.3*cos(40.0*i)        ! solution vectors
+      s(i,2)=10*sin(5.0*i)           ! i and i**2 get too ill-conditioned with large n
+     end do
+    else
+     do i=1,n
       s(i,1)=i                     ! solution vectors
-      s(i,2)=i**2
-    end do
+      s(i,2)=i**2 
+     end do      
+    endif
+                      
     d=matmul(aij,s )               ! RHS vectors
     cij=aij                        ! store a copy
 
@@ -52,7 +63,7 @@
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
  
-    if (N < 500) then   ! don't do this unless you want to wait a long time
+    if (N < 1000) then   ! don't do this unless you want to wait a long time
     aij=cij
     d=matmul(aij,s)                           
     call CPU_TIME(time_start)
@@ -123,7 +134,6 @@
       write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
       write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
       write(*,*) ' '
-     endif
      
 !     simple tridiagonal algorithm: should be fastest with -O3 compilation
       a=AB(1,:)
@@ -138,7 +148,9 @@
       write(*,*) 'solution error',dot_product((s(:,1)-z(:,1)),(s(:,1)-z(:,1))) 
       write(*,*) 'solution error',dot_product((s(:,2)-z(:,2)),(s(:,2)-z(:,2)))
       write(*,*) ' '
-         
+
+     endif
+              
     ENDIF
 
     d=matmul(aij,s)

@@ -1,5 +1,4 @@
      SUBROUTINE DCTSV( N, NRHS, DL, D, DU, B, LDB, INFO )
-     USE OMP_LIB
      IMPLICIT NONE   
 !      PURPOSE solves the cyclic/periodic tridiagonal system, see LAPACK routine DGTSV for comparison
 !      Copyright (c) 2021   Anthony M de Beus
@@ -61,8 +60,8 @@
        REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * )  ! no output no LU factors
        REAL(wp), INTENT(INOUT) :: B( LDB, * ) ! on entry RHS, on exit, solution 
 !      ..
-       REAL(wp) :: udR(2,2,0:N/2+1),ueR(2,0:N/2+1,NRHS),DET2  ! udR is my set of matrices Aj(bar) ueR is my vectors vj(bar)
-       REAL(wp) :: ud(2,2,0:N/2+1),ue(2,0:N/2+1,NRHS),DET     !  ud is my set of matrices Aj ue is my vectors vj 
+       REAL(wp) :: udR(2,2,N/4:N/2+1),ueR(2,N/4:N/2+1,NRHS),DET2  ! udR is my set of matrices Aj(bar) ueR is my vectors vj(bar)
+       REAL(wp) :: ud(2,2,0:N/4+1),ue(2,0:N/4+1,NRHS),DET     !  ud is my set of matrices Aj ue is my vectors vj 
        INTEGER :: i,j,k,p,L  
 
 !      needed for f90+ calling of f77 routines
@@ -91,8 +90,9 @@
        END IF
        IF( N.EQ.0 ) RETURN
 !      End INFO handling
+
        p=mod(N,2)
-       L=(N-p)/4
+       L=(N-p)/4+1
       
 !      FIRST EQUATION ud(0)=((0,1),(1,0) & ue(0) = (0,0)
        ud(:,:,0)=0
@@ -121,19 +121,23 @@
          RETURN
         endif                           
        endif 
-
-!$OMP PARALLEL num_threads(2)
-
-!call forward(N, NRHS, DL, D, DU, B, LDB, INFO, UD, UE)
-!call backward(N, NRHS, DL, D, DU, B, LDB, INFO, UDR, UER)
-
+       
 !      ALL BUT THE LAST EQUATION  
-       do j=1,L                                                                                   
+       do j=1,L 
+        k=(N-p)/2-j+1
+                                                             
+        DET2=D(k)*D(1-k+N)+DU(k)*D(1-k+N)*udR(1,1,1+k)-& 
+            DU(k)*DL(1-k+N)*udR(1,2,1+k)*udR(2,1,1+k)+&       
+            D(k)*DL(1-k+N)*udR(2,2,1+k)+&
+            DU(k)*DL(1-k+N)*udR(1,1,1+k)*udR(2,2,1+k)       
+                                                                                        
         DET=D(j)*D(1-j+N)+DL(j)*D(1-j+N)*ud(1,1,-1+j)-& 
             DL(j)*DU(1-j+N)*ud(1,2,-1+j)*ud(2,1,-1+j)+&       
             D(j)*DU(1-j+N)*ud(2,2,-1+j)+&
             DL(j)*DU(1-j+N)*ud(1,1,-1+j)*ud(2,2,-1+j)
-        IF (DET /= 0) THEN
+            
+        IF (DET /= 0 .AND. DET2 /=0) THEN
+        
          ud(1,1,j)=-((DU(j)*(D(1-j+N)+DU(1-j+N)*ud(2,2,-1+j)))/DET)    
          ud(1,2,j)=(DL(j)*DL(1-j+N)*ud(1,2,-1+j))/DET                 
          ud(2,1,j)=(DU(j)*DU(1-j+N)*ud(2,1,-1+j))/DET                
@@ -141,39 +145,24 @@
          ue(1,j,1:NRHS)=(-DL(j)*(B(1-j+N,1:NRHS)-DU(1-j+N)*ue(2,-1+j,1:NRHS))*ud(1,2,-1+j)+&             
                 (B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*(D(1-j+N)+DU(1-j+N)*ud(2,2,-1+j)))/DET
          ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DU(1-j+N)*ue(2,-1+j,1:NRHS))*(D(j)+DL(j)*ud(1,1,-1+j))-&
-                DU(1-j+N)*(B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*ud(2,1,-1+j))/DET          
+                DU(1-j+N)*(B(j,1:NRHS)-DL(j)*ue(1,-1+j,1:NRHS))*ud(2,1,-1+j))/DET
+                
+         udR(1,1,k)=-((DL(k)*(D(1-k+N)+DL(1-k+N)*udR(2,2,1+k)))/DET2)    
+         udR(1,2,k)=(DU(k)*DU(1-k+N)*udR(1,2,1+k))/DET2                 
+         udR(2,1,k)=(DL(k)*DL(1-k+N)*udR(2,1,1+k))/DET2                
+         udR(2,2,k)=-((DU(1-k+N)*(D(k)+DU(k)*udR(1,1,1+k)))/DET2)                                 
+         ueR(1,k,1:NRHS)=(-DU(k)*(B(1-k+N,1:NRHS)-DL(1-k+N)*ueR(2,1+k,1:NRHS))*udR(1,2,1+k)+&             
+                (B(k,1:NRHS)-DU(k)*ueR(1,1+k,1:NRHS))*(D(1-k+N)+DL(1-k+N)*udR(2,2,1+k)))/DET2
+         ueR(2,k,1:NRHS)=((B(1-k+N,1:NRHS)-DL(1-k+N)*ueR(2,1+k,1:NRHS))*(D(k)+DU(k)*udR(1,1,1+k))-&
+                DL(1-k+N)*(B(k,1:NRHS)-DU(k)*ueR(1,1+k,1:NRHS))*udR(2,1,1+k))/DET2                          
         ELSE
          INFO=j
          CALL XERBLA( 'DCTSV ', INFO )
-!         RETURN
+         RETURN
         ENDIF                                                                                              
-       end do
-
-!      ALL BUT THE LAST EQUATION  
-       do j=(N-p)/2,L,-1                                              
-        DET=D(j)*D(1-j+N)+DU(j)*D(1-j+N)*udR(1,1,1+j)-& 
-            DU(j)*DL(1-j+N)*udR(1,2,1+j)*udR(2,1,1+j)+&       
-            D(j)*DL(1-j+N)*udR(2,2,1+j)+&
-            DU(j)*DL(1-j+N)*udR(1,1,1+j)*udR(2,2,1+j)
-                                  
-        IF (DET /= 0) THEN
-         udR(1,1,j)=-((DL(j)*(D(1-j+N)+DL(1-j+N)*udR(2,2,1+j)))/DET)    
-         udR(1,2,j)=(DU(j)*DU(1-j+N)*udR(1,2,1+j))/DET                 
-         udR(2,1,j)=(DL(j)*DL(1-j+N)*udR(2,1,1+j))/DET                
-         udR(2,2,j)=-((DU(1-j+N)*(D(j)+DU(j)*udR(1,1,1+j)))/DET)                                 
-         ueR(1,j,1:NRHS)=(-DU(j)*(B(1-j+N,1:NRHS)-DL(1-j+N)*ueR(2,1+j,1:NRHS))*udR(1,2,1+j)+&             
-                (B(j,1:NRHS)-DU(j)*ueR(1,1+j,1:NRHS))*(D(1-j+N)+DL(1-j+N)*udR(2,2,1+j)))/DET
-         ueR(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DL(1-j+N)*ueR(2,1+j,1:NRHS))*(D(j)+DU(j)*udR(1,1,1+j))-&
-                DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ueR(1,1+j,1:NRHS))*udR(2,1,1+j))/DET                                                  
-        ELSE
-         INFO=j
-         CALL XERBLA( 'DCTSV ', -INFO )
-!         RETURN
-        ENDIF                                                                                                           
-       end do
-
-!$OMP END PARALLEL
-
+                                                                                                                                                            
+       end do       
+       
 !      LAST EQUATIONS for both is at L
        j=L    
 !      B(j)=Inverse[IDENT-matmul(udR(:,:,j),ud(:,:,j-1))][udR(:,:,j)*ue(j-1)+ueR(j)]
@@ -183,12 +172,10 @@
               (udR(1,1,j)*ud(1,2,j-1)+udR(1,2,j)*ud(2,2,j-1))*&
               (udR(2,1,j)*ud(1,1,j-1)+udR(2,2,j)*ud(2,1,j-1))
                             
-
        DET2=(1-ud(1,1,j-1)*udR(1,1,j)-ud(1,2,j-1)*udR(2,1,j))*&
             (1-ud(2,1,j-1)*udR(1,2,j)-ud(2,2,j-1)*udR(2,2,j))-&
               (ud(1,1,j-1)*udR(1,2,j)+ud(1,2,j-1)*udR(2,2,j))*&
               (ud(2,1,j-1)*udR(1,1,j)+ud(2,2,j-1)*udR(2,1,j))
-
 
         IF (DET /= 0 .AND. DET2 /= 0) THEN           
 
@@ -202,8 +189,6 @@
                (udR(2,1,j)*ud(1,1,j-1)+udR(2,2,j)*ud(2,1,j-1))*(udR(1,1,j)*ue(1,j-1,1:NRHS)&
                +udR(1,2,j)*ue(2,j-1,1:NRHS)+ ueR(1,j,1:NRHS)))/DET
 
-
-        if (L > 1 ) then 
         B(j-1,1:NRHS) = ((1-ud(2,1,j-1)*udR(1,2,j)-ud(2,2,j-1)*udR(2,2,j))*&
                (ud(1,1,j-1)*ueR(1,j,1:NRHS)+ud(1,2,j-1)*ueR(2,j,1:NRHS)+ ue(1,j-1,1:NRHS))+&
                (ud(1,1,j-1)*udR(1,2,j)+ud(1,2,j-1)*udR(2,2,j))*(ud(2,1,j-1)*ueR(1,j,1:NRHS)&
@@ -213,7 +198,6 @@
                (ud(2,1,j-1)*ueR(1,j,1:NRHS)+ud(2,2,j-1)*ueR(2,j,1:NRHS)+ ue(2,j-1,1:NRHS))+&
                (ud(2,1,j-1)*udR(1,1,j)+ud(2,2,j-1)*udR(2,1,j))*(ud(1,1,j-1)*ueR(1,j,1:NRHS)&
                +ud(1,2,j-1)*ueR(2,j,1:NRHS)+ ue(1,j-1,1:NRHS)))/DET2
-         endif
                                                               
         ELSE
 
@@ -221,8 +205,7 @@
          CALL XERBLA( 'DCTSV ', -INFO )
          RETURN
         ENDIF       
-
-               
+              
 !      BACKSUBSTITUTION B(j-1)=UE(j-1)+UD(:,:,j-1)*B(j)
        do i=L-1,1,-1
         B(i,1:NRHS)=    ue(1,i,1:NRHS)+ud(1,1,i)*B(i+1,1:NRHS)+ud(1,2,i)*B(N-i,1:NRHS)
@@ -240,7 +223,7 @@
         B(i+1,1:NRHS)=(ueR(1,i+1,1:NRHS)+udR(1,1,i+1)*B(i,1:NRHS)+udR(1,2,i+1)*B(N-i+1,1:NRHS)+&
                        ueR(2,i+1,1:NRHS)+udR(2,1,i+1)*B(i,1:NRHS)+udR(2,2,i+1)*B(N-i+1,1:NRHS))/2 
        endif
-      
+     
      end subroutine DCTSV
 
 

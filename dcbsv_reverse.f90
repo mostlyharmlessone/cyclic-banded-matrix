@@ -208,12 +208,12 @@
     end do
       
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
-   jj=0  !index of number of arrays
-   do j=1,(N-p)/2-KU,KU     ! j is not used in this loop, it's just a counter 
-    jj=jj+1     
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
+   jj=(N-p)/(2*KU)+1  !index of number of arrays
+   do j=(N-p)/2-KU,KU,-KU     ! j is not used in this loop, it's just a counter 
+    jj=jj-1     
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UD(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
-!    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1)) 
+!    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UD(:,:,jj+1)) 
 !   write Bj with RHS
     do i=1,KU
       Bj(i,jj,1:NRHS)=B(j+i-1,1:NRHS)   
@@ -222,11 +222,11 @@
       Bj(i,jj,1:NRHS)=B(N-2*KU+i-j+1,1:NRHS)
     end do       
 !   concatenate Aj and vj solutions onto EE        
-     EE(:,1:2*KU)=-Pj(:,:,jj)
+     EE(:,1:2*KU)=-Sj(:,:,jj)
      do hh=1,NRHS
-      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1) 
+      call DGEMV('N',2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UE(:,jj+1,hh),1,0.0_wp,CC(:,hh),1) 
       EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
-!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
+!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Pj(:,:,jj),UE(:,jj+1,hh))
      end do
 !    compute next UD,UE using factored A
     call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution                
@@ -242,21 +242,21 @@
    end do 
    
 !  LAST EQUATION  (last j from above+KU)    
-    jj=(N-p)/(2*KU)       
-!   j=(N-p)/2+1-KU      
+    jj=1
+!   j=KU     
 !   remaining values of B centrally
     do i=1,2*KU+p
       BjL(i,1:NRHS)=B((N-p)/2-KU+i,1:NRHS)   ! write BjL with RHS
     end do
-    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)
+    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UE(:,jj+1,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)
     call DGEMM('N','N',2*KU+p,NRHS,2*KU,1.0_wp,IDENTS,2*KU+p,CC(:,1:NRHS),2*KU,0.0_wp,CCL(:,1:NRHS),2*KU+p)        
     CCL(:,1:NRHS)=BjL(:,1:NRHS)-CCL(:,1:NRHS)
-!    CCL(:,1:NRHS)=BjL(:,1:NRHS)-matmul(IDENTS,matmul(Sj(:,:,jj),UE(:,jj-1,1:NRHS)))    
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AL,2*KU)
+!    CCL(:,1:NRHS)=BjL(:,1:NRHS)-matmul(IDENTS,matmul(Pj(:,:,jj),UE(:,jj+1,1:NRHS)))    
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UD(:,:,jj+1),2*KU,0.0_wp,AL,2*KU)
     call DGEMM('N','T',2*KU,2*KU+p,2*KU,1.0_wp,AL,2*KU,IDENTS,2*KU+p,0.0_wp,BL,2*KU)
     call DGEMM('N','N',2*KU+p,2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,BL,2*KU,0.0_wp,AAL,2*KU+p)
     AAL=CjL+AAL
-!    AAL=CjL+matmul(IDENTS,matmul(matmul(Sj(:,:,jj),UD(:,:,jj-1)),Transpose(IDENTS)))   
+!    AAL=CjL+matmul(IDENTS,matmul(matmul(Pj(:,:,jj),UD(:,:,jj+1)),Transpose(IDENTS)))   
     call DGESV(2*KU+p, NRHS , AAL, 2*KU+p, IPIV, CCL(:,1:NRHS), 2*KU+p, INFO ) ! overwrites CCL    
     if (info /= 0) then        
      CALL XERBLA( 'DGESV/DCBSV ', INFO )
@@ -273,11 +273,11 @@
     end do 
     endif
     
-!   BACKSUBSTITUTION z(j-1)=UE(j-1)+UD(:,:,j-1)*z(j) 
-    do jj=(N-p)/(2*KU),2,-1
-     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
-     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
-!      Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))
+!   BACKSUBSTITUTION z(j+1)=UE(j+1)+UD(:,:,j+1)*z(j) 
+    do jj=1,(N-p)/(2*KU)
+     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj+1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
+     Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+CC(:,1:NRHS)
+!      Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+matmul(UD(:,:,jj+1),Bj(:,jj,1:NRHS))
     end do
     
   do kk=1,NRHS         
