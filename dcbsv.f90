@@ -86,7 +86,7 @@
    REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+2*KU) ! ud is my set of matrices Aj
    REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU,NRHS)      ! ue is my vectors vj 
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
-   REAL(wp) :: IDENTS(2*KU+mod(N,2*KU),2*KU),AL(2*KU,2*KU),BL(2*KU,2*KU+mod(N,2*KU))
+   REAL(wp) :: IDENTS(2*KU+mod(N,2*KU),2*KU),BL(2*KU,2*KU+mod(N,2*KU))
    REAL(wp) :: AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU),NRHS)
    Real(wp) :: D(2*KU+mod(N,2*KU),NRHS)   
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU+mod(N,2*KU))
@@ -123,8 +123,7 @@
    CCL=0
    EE=0   
    Sj=0   
-   jj=0  !index of number of arrays
-       
+   jj=0  !index of number of arrays       
     do j=1,(N-p)/2+1-KU,KU   
        jj=jj+1
          do i=1,KU
@@ -164,10 +163,17 @@
            Sj(i,k,jj)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
            endif
           end do 
-         end do   
+         end do 
+         do i=1,KU
+          Bj(i,jj,1:NRHS)=B(j+i-1,1:NRHS)
+         end do     
+         do i=KU+1,2*KU
+          Bj(i,jj,1:NRHS)=B(N-2*KU+i-j+1,1:NRHS)             
+         end do           
    end do
 
 !  LAST ARRAYS needs extra p rows in middle of Cj & Pj now 2KU+p square
+!       CjL=Cj(:,:,jj)+matmul(Pj(:,:,jj),ud(:,:,0)) when p=0 & jj=N/2
          j=(N-p)/2+1-KU ! is found at middle 
          do i=1,2*KU+p
           do k=1,2*KU+p
@@ -206,21 +212,14 @@
       endif
      end do 
     end do
-      
+         
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
    jj=0  !index of number of arrays
-   do j=1,(N-p)/2-KU,KU     ! j is not used in this loop, it's just a counter 
+   do j=1,(N-p)/2-KU,KU      
     jj=jj+1     
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
-!    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1)) 
-!   write Bj with RHS
-    do i=1,KU
-      Bj(i,jj,1:NRHS)=B(j+i-1,1:NRHS)   
-    end do     
-    do i=KU+1,2*KU
-      Bj(i,jj,1:NRHS)=B(N-2*KU+i-j+1,1:NRHS)
-    end do       
+!    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))        
 !   concatenate Aj and vj solutions onto EE        
      EE(:,1:2*KU)=-Pj(:,:,jj)
      do hh=1,NRHS
@@ -238,7 +237,7 @@
     do hh=1,NRHS     
      UE(:,jj,hh)=EE(:,2*KU+hh)                
     end do    
-    endif          
+    endif              
    end do 
    
 !  LAST EQUATION  (last j from above+KU)    
@@ -252,8 +251,8 @@
     call DGEMM('N','N',2*KU+p,NRHS,2*KU,1.0_wp,IDENTS,2*KU+p,CC(:,1:NRHS),2*KU,0.0_wp,CCL(:,1:NRHS),2*KU+p)        
     CCL(:,1:NRHS)=BjL(:,1:NRHS)-CCL(:,1:NRHS)
 !    CCL(:,1:NRHS)=BjL(:,1:NRHS)-matmul(IDENTS,matmul(Sj(:,:,jj),UE(:,jj-1,1:NRHS)))    
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AL,2*KU)
-    call DGEMM('N','T',2*KU,2*KU+p,2*KU,1.0_wp,AL,2*KU,IDENTS,2*KU+p,0.0_wp,BL,2*KU)
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
+    call DGEMM('N','T',2*KU,2*KU+p,2*KU,1.0_wp,AA,2*KU,IDENTS,2*KU+p,0.0_wp,BL,2*KU)
     call DGEMM('N','N',2*KU+p,2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,BL,2*KU,0.0_wp,AAL,2*KU+p)
     AAL=CjL+AAL
 !    AAL=CjL+matmul(IDENTS,matmul(matmul(Sj(:,:,jj),UD(:,:,jj-1)),Transpose(IDENTS)))   
@@ -279,7 +278,7 @@
      Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
 !      Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))
     end do
-    
+     
   do kk=1,NRHS         
     ii=(N-p)/(2*KU)      
 !    overwrite RHS with solution Bj      

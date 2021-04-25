@@ -58,8 +58,12 @@
        INTEGER, INTENT(OUT) :: INFO 
 !      ..
 !      .. Array Arguments ..
-       REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * )  ! no output no LU factors
-       REAL(wp), INTENT(INOUT) :: B( LDB, * ) ! on entry RHS, on exit, solution 
+       REAL(wp), INTENT(IN) :: D( N ), DL( N ), DU( N )  ! no output no LU factors
+       REAL(wp), INTENT(INOUT) :: B( LDB, NRHS ) ! on entry RHS, on exit, solution 
+
+!      make a copy to avoid data blocking 
+       REAL(wp) :: DR( N ), DLR( N ), DUR( N )  ! no output no LU factors
+       REAL(wp) :: BR( N, NRHS ) ! on entry RHS, on exit, solution        
 !      ..
        REAL(wp) :: udR(2,2,0:N/2+1),ueR(2,0:N/2+1,NRHS),DET2  ! udR is my set of matrices Aj(bar) ueR is my vectors vj(bar)
        REAL(wp) :: ud(2,2,0:N/2+1),ue(2,0:N/2+1,NRHS),DET     !  ud is my set of matrices Aj ue is my vectors vj 
@@ -94,6 +98,11 @@
 !       IF( N.EQ.0 ) RETURN
 !      End INFO handling
 
+       DR=D
+       DLR=DL
+       DUR=DU
+       BR=B
+       
        p=mod(N,2)
        L=(N-p)/4
       
@@ -123,10 +132,10 @@
          CALL XERBLA( 'DCTSV ', -INFO )
 !         RETURN
         endif                           
-       endif 
+       endif        
 
        call forward(N, NRHS, DL, D, DU, B, LDB, INFO, UD, UE)
-       call backward(N, NRHS, DL, D, DU, B, LDB, INFO, UDR, UER)
+       call backward(N, NRHS, DLR, DR, DUR, BR, LDB, INFO, UDR, UER)
 
 !$OMP BARRIER
 

@@ -93,7 +93,7 @@
        p=mod(N,2)
              
 !      FIRST EQUATION 
-!       ud(0)=((0,1),(1,0) & ue(0) = (0,0) when p==0
+!       ud(N/2+1)=((0,1),(1,0) & ue(N/2+1) = (0,0) when p==0
        if (p == 0) then 
         ud(:,:,N/2+1)=0
         ud(1,2,N/2+1)=1
@@ -129,14 +129,15 @@
          ue(1,j,1:NRHS)=(-DU(j)*(B(1-j+N,1:NRHS)-DL(1-j+N)*ue(2,1+j,1:NRHS))*ud(1,2,1+j)+&             
                 (B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*(D(1-j+N)+DL(1-j+N)*ud(2,2,1+j)))/DET
          ue(2,j,1:NRHS)=((B(1-j+N,1:NRHS)-DL(1-j+N)*ue(2,1+j,1:NRHS))*(D(j)+DU(j)*ud(1,1,1+j))-&
-                DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*ud(2,1,1+j))/DET                                                  
+                DL(1-j+N)*(B(j,1:NRHS)-DU(j)*ue(1,1+j,1:NRHS))*ud(2,1,1+j))/DET   
+                                                                        
         ELSE
          INFO=j
          CALL XERBLA( 'DCTSV ', -INFO )
          RETURN
         ENDIF                                                                                                           
        end do
-
+             
 !      LAST EQUATION 
 !      NO ud(,,j); ue(,1) iS THE SOLUTION AT 1,N  
         DET=D(1)*D(N)-DU(N)*DL(1)+DU(1)*D(N)*ud(1,1,2)-&
@@ -157,7 +158,7 @@
          CALL XERBLA( 'DCTSV ', -INFO )
          RETURN
         ENDIF        
-           
+
 !      BACKSUBSTITUTION B(j+1)=UE(j+1)+UD(:,:,j+1)*B(j)
        do i=1,(N-p)/2-1
         B(i+1,1:NRHS)=ue(1,i+1,1:NRHS)+ud(1,1,i+1)*B(i,1:NRHS)+ud(1,2,i+1)*B(N-i+1,1:NRHS)
