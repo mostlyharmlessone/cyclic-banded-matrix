@@ -92,7 +92,7 @@
    
    if (p /= 0) then 
    write(*,*) 'currently only works for p=mod(N,2*KU)=0'
-   stop
+!   stop
    endif
    
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
@@ -197,11 +197,20 @@
      end do 
    end do
    else
-   write(*,*) 'currently only works for p=mod(N,2*KU)=0'
-   stop
    UE(:,(N-p)/(2*KU)+1,:)=0
-   UD(:,:,(N-p)/(2*KU)+1)=0                             
-   endif    
+   UD(:,:,(N-p)/(2*KU)+1)=0
+   do i=1,2*KU
+     do k=1,2*KU
+      if ( (ABS(k - i) - 0  ) == 0 ) then
+        UD(i,k,(N-p)/(2*KU)+1)=1
+      endif
+     end do 
+   end do 
+UD(:,:,N/(2*KU)+1)=                          
+   endif
+
+write(*,*) 'p',p
+write(*,*) Transpose(UD(:,:,N/(2*KU)+1))  
 
 !? may not be needed
 !  IDENTITY MATRIX WITH p extra rows of zeroes in the middle
@@ -269,7 +278,7 @@
     endif    
     
 !   BACKSUBSTITUTION z(j+1)=UE(j+1)+UD(:,:,j+1)*z(j) 
-    do jj=1,N/(2*KU)-1
+    do jj=1,(N-p)/(2*KU)-1
      call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj+1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
      Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+CC(:,1:NRHS)
 !      Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+matmul(UD(:,:,jj+1),Bj(:,jj,1:NRHS))
