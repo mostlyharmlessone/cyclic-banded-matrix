@@ -236,7 +236,8 @@
 !      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Pj(:,:,jj),UE(:,jj+1,hh))
      end do
 !    compute next UD,UE using factored A
-    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution                
+    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
+!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                    
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
      RETURN
@@ -256,7 +257,8 @@
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,1),2*KU,UD(:,:,0),2*KU,0.0_wp,AA,2*KU)    
     A=Cj(:,:,1)+AA+A
 !    A=Cj(:,:,1)+matmul(Sj(:,:,1),ud(:,:,0))+matmul(Pj(:,:,1),UD(:,:,2))   
-    call DGESV(2*KU, NRHS , A, 2*KU, IPIV, CCL(:,1:NRHS), 2*KU, INFO ) ! overwrites CCL    
+    call DGESV(2*KU, NRHS , A, 2*KU, IPIV, CCL(:,1:NRHS), 2*KU, INFO ) ! overwrites CCL 
+!    call GaussJordan( 2*KU, NRHS, A ,2*KU, CCL(:,1:NRHS), 2*KU, INFO )  ! overwrites CCL       
     if (info /= 0) then        
      CALL XERBLA( 'DGESV/DCBSV ', INFO )
      RETURN
