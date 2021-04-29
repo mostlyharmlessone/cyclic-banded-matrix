@@ -84,8 +84,8 @@
    REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+2*KU) ! ud is my set of matrices Aj
    REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU,NRHS)      ! ue is my vectors vj 
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
-   REAL(wp) :: IDENTS(2*KU+mod(N,2*KU),2*KU)
-   REAL(wp) :: CCL(2*KU,NRHS)   
+   REAL(wp) :: CCL(2*KU,NRHS)
+   REAL(wp), ALLOCATABLE :: CJL(:,:),SPJ(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU)
     
    p=mod(N,2*KU)
@@ -123,7 +123,8 @@
    EE=0   
    Sj=0   
    jj=0  !index of number of arrays
-             
+
+!   Setup the arrays             
     do j=1,(N-p)/2+1-KU,KU   
        jj=jj+1
          do i=1,KU
@@ -183,52 +184,93 @@
      end do 
    end do        
                
-!  FIRST EQUATION 
-!  initial values
-!  FIRST EQUATION V(0)=0 & A(0) = permuted identity
+
+!  FIRST EQUATION if p=0 V(N/(2*KU)=0 & A(N/(2*KU) = permuted identity
    if (p == 0) then
-   UE(:,N/(2*KU)+1,:)=0
-   UD(:,:,N/(2*KU)+1)=0
-   do i=1,2*KU
+    UE(:,N/(2*KU)+1,:)=0
+    UD(:,:,N/(2*KU)+1)=0
+    do i=1,2*KU
      do k=1,2*KU
       if ( (ABS(k - i) - KU) == 0 ) then
         UD(i,k,N/(2*KU)+1)=1
       endif
      end do 
-   end do
+    end do
    else
-   UE(:,(N-p)/(2*KU)+1,:)=0
-   UD(:,:,(N-p)/(2*KU)+1)=0
-   do i=1,2*KU
-     do k=1,2*KU
-      if ( (ABS(k - i) - 0  ) == 0 ) then
-        UD(i,k,(N-p)/(2*KU)+1)=1
+!  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
+    allocate (CJL(p,p),SPJ(p,2*KU),EEK(p,2*KU+NRHS))
+!   FIRST ARRAYS now p square and px2*KU
+    j=(N-p)/2+1    ! is the start of the middle p values 
+    do i=1,p
+     do k=1,p
+      if (ABS(k-i) <=  KU) then
+       CjL(i,k)=AB(KU+k-i+1,j+i-1)
+      endif
+     end do
+!    j=(N-p)/2+1-KU    ! is the start of zj in the middle
+     do k=1,KU
+      if ( k >= i ) then
+       SPJ(i,k)=AB(KU+k-i+1,j-KU+i-1)
+      endif
+     end do
+     do k=KU+1,2*KU
+      if ( k >= i ) then
+       SPJ(i,k)=AB(2*KU+k-i+1,j-KU+i-1)
       endif
      end do 
-   end do 
-UD(:,:,N/(2*KU)+1)=                          
+    end do
+!   solve for UE and precursor of UD
+    CJL zpj = -SPJ zj + bj
+!   concatenate UD precursor and UD solutions onto EEK        
+     EEK(:,1:2*KU)=-SPj(:,:)
+     do hh=1,NRHS
+      do i=1,2*KU
+       EEK(:,2*KU+hh)=B(j+i-1,hh)
+      end do     
+     end do
+!   
+    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
+!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                    
+    if (info /= 0) then
+     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
+     RETURN
+    else
+     UD(:,:,jj)=EE(:,1:2*KU)
+    do hh=1,NRHS     
+     UE(:,jj,hh)=EE(:,2*KU+hh)                
+    end do    
+    endif
+
+!   Two cases, p < KU or p >= KU (p <=2*KU always since p=mod(N,2*KU)) 
+    if (p < KU) then
+!    take px2KU
+!    p rows on top and bottom
+!    needs A0 in center 2*KU-2*p in size
+!    result is 2KUx2KU
+     UE(:,(N-p)/(2*KU)+1,:)=0
+     UD(:,:,(N-p)/(2*KU)+1)=0
+     do i=1,2*KU
+      do k=1,2*KU
+       if ( (ABS(k - i) - 0  ) == 0 ) then
+        UD(i,k,(N-p)/(2*KU)+1)=1
+       endif
+      end do 
+     end do 
+
+     UD(:,:,N/(2*KU)+1)=
+
+    else
+!    take px2KU
+!    duplicate 2*KU-p middle rows
+!    result is 2KUx2KU
+     UD(:,:,N/(2*KU)+1)=
+    endif
+    deallocate (CJL,SPJ)                        
    endif
 
 write(*,*) 'p',p
 write(*,*) Transpose(UD(:,:,N/(2*KU)+1))  
 
-!? may not be needed
-!  IDENTITY MATRIX WITH p extra rows of zeroes in the middle
-   IDENTS=0
-    do i=1,KU
-     do k=1,KU
-      if ( i == k ) then
-       IDENTS(i,k)=1
-      endif
-     end do
-    end do
-    do i=1+KU+p,2*KU+p
-     do k=KU,2*KU
-      if ( i == k+p ) then
-       IDENTS(i,k)=1
-      endif
-     end do 
-    end do
        
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
    jj=N/(2*KU)+1  !index of number of arrays
