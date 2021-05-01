@@ -127,49 +127,29 @@
     do j=1,(N-p)/2+1-KU,KU   
        jj=jj+1
          do i=1,KU
+           Bj(i,jj,1:NRHS)=B(j+i-1,1:NRHS)
           do k=1,KU
            Cj(i,k,jj)=AB(KU+k-i+1,j+i-1)
+           if ( k <= i ) then
+            Pj(i,k,jj)=AB(2*KU+1+k-i,j+i-1)
+           endif 
+           if ( k >= i ) then
+            Sj(i,k,jj)=AB(1+k-i,j+i-1)
+           endif                     
           end do 
          end do       
          do i=KU+1,2*KU
+          Bj(i,jj,1:NRHS)=B(N-2*KU+i-j+1,1:NRHS)         
           do k=KU+1,2*KU
            Cj(i,k,jj)=AB(KU+k-i+1,n-2*KU+i-j+1)
-          end do 
-         end do
-         do i=1,KU
-          do k=1,KU
-           if ( k <= i ) then
-           Pj(i,k,jj)=AB(2*KU+1+k-i,j+i-1)
-           endif
-          end do 
-         end do
-         do i=KU+1,2*KU
-          do k=KU+1,2*KU
            if ( k >= i ) then
-           Pj(i,k,jj)=AB(1+k-i,n-2*KU+i-j+1)
-           endif
-          end do 
-         end do    
-         do i=1,KU
-          do k=1,KU
-           if ( k >= i ) then
-           Sj(i,k,jj)=AB(1+k-i,j+i-1)
-           endif
-          end do 
-         end do       
-         do i=KU+1,2*KU
-          do k=KU+1,2*KU
+            Pj(i,k,jj)=AB(1+k-i,n-2*KU+i-j+1)
+           endif 
            if ( k <= i ) then
-           Sj(i,k,jj)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
-           endif
+            Sj(i,k,jj)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
+           endif                     
           end do 
-         end do 
-         do i=1,KU
-          Bj(i,jj,1:NRHS)=B(j+i-1,1:NRHS)
-         end do     
-         do i=KU+1,2*KU
-          Bj(i,jj,1:NRHS)=B(N-2*KU+i-j+1,1:NRHS)             
-         end do           
+         end do                              
    end do
 
 !  LAST ARRAYS needs extra p rows in middle of Cj & Pj now 2KU+p square

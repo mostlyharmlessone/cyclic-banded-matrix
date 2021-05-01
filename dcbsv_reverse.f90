@@ -85,7 +85,7 @@
    REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU,NRHS)      ! ue is my vectors vj 
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
    REAL(wp) :: CCL(2*KU,NRHS)
-   REAL(wp), ALLOCATABLE :: CJL(:,:),SPJ(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
+   REAL(wp), ALLOCATABLE :: CjL(:,:),SPj(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU)
     
    p=mod(N,2*KU)
@@ -128,48 +128,28 @@
     do j=1,(N-p)/2+1-KU,KU   
        jj=jj+1
          do i=1,KU
+           Bj(i,jj,1:NRHS)=B(j+i-1,1:NRHS)
           do k=1,KU
            Cj(i,k,jj)=AB(KU+k-i+1,j+i-1)
+           if ( k <= i ) then
+            Pj(i,k,jj)=AB(2*KU+1+k-i,j+i-1)
+           endif 
+           if ( k >= i ) then
+            Sj(i,k,jj)=AB(1+k-i,j+i-1)
+           endif                     
           end do 
          end do       
          do i=KU+1,2*KU
+          Bj(i,jj,1:NRHS)=B(N-2*KU+i-j+1,1:NRHS)         
           do k=KU+1,2*KU
            Cj(i,k,jj)=AB(KU+k-i+1,n-2*KU+i-j+1)
-          end do 
-         end do
-         do i=1,KU
-          do k=1,KU
-           if ( k <= i ) then
-           Pj(i,k,jj)=AB(2*KU+1+k-i,j+i-1)
-           endif
-          end do 
-         end do
-         do i=KU+1,2*KU
-          do k=KU+1,2*KU
            if ( k >= i ) then
-           Pj(i,k,jj)=AB(1+k-i,n-2*KU+i-j+1)
-           endif
-          end do 
-         end do    
-         do i=1,KU
-          do k=1,KU
-           if ( k >= i ) then
-           Sj(i,k,jj)=AB(1+k-i,j+i-1)
-           endif
-          end do 
-         end do       
-         do i=KU+1,2*KU
-          do k=KU+1,2*KU
+            Pj(i,k,jj)=AB(1+k-i,n-2*KU+i-j+1)
+           endif 
            if ( k <= i ) then
-           Sj(i,k,jj)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
-           endif
+            Sj(i,k,jj)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
+           endif                     
           end do 
-         end do 
-         do i=1,KU
-          Bj(i,jj,1:NRHS)=B(j+i-1,1:NRHS)
-         end do     
-         do i=KU+1,2*KU
-          Bj(i,jj,1:NRHS)=B(N-2*KU+i-j+1,1:NRHS)             
          end do                              
    end do
 
@@ -179,7 +159,7 @@
    do i=1,2*KU
      do k=1,2*KU
       if ( (ABS(k - i) - KU) == 0 ) then
-        UD(i,k,0)=1
+        UD(i,k,0)=1        
       endif
      end do 
    end do        
@@ -198,7 +178,7 @@
     end do
    else
 !  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
-    allocate (CJL(p,p),SPJ(p,2*KU),EEK(p,2*KU+NRHS))
+    allocate (CjL(p,p),SPj(p,2*KU),EEK(p,2*KU+NRHS))
 !   FIRST ARRAYS now p square and px2*KU
     j=(N-p)/2+1    ! is the start of the middle p values 
     do i=1,p
@@ -210,17 +190,17 @@
 !    j=(N-p)/2+1-KU    ! is the start of zj in the middle
      do k=1,KU
       if ( k >= i ) then
-       SPJ(i,k)=AB(KU+k-i+1,j-KU+i-1)
+       SPj(i,k)=AB(KU+k-i+1,j-KU+i-1)
       endif
      end do
      do k=KU+1,2*KU
       if ( k >= i ) then
-       SPJ(i,k)=AB(2*KU+k-i+1,j-KU+i-1)
+       SPj(i,k)=AB(2*KU+k-i+1,j-KU+i-1)
       endif
      end do 
     end do
 !   solve for UE and precursor of UD
-    CJL zpj = -SPJ zj + bj
+!   CJL zpj = -SPJ zj + bj
 !   concatenate UD precursor and UD solutions onto EEK        
      EEK(:,1:2*KU)=-SPj(:,:)
      do hh=1,NRHS
@@ -228,45 +208,38 @@
        EEK(:,2*KU+hh)=B(j+i-1,hh)
       end do     
      end do
-!   
-    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
-!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                    
+    call DGESV(p,p+NRHS,CjL,p,IPIV,EEK,p,INFO) ! overwrites EE into solution 
+!    call GaussJordan( p, p+NRHS ,A ,p , EEK, p, INFO )   ! overwrites EE into solution                    
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
      RETURN
     else
-     UD(:,:,jj)=EE(:,1:2*KU)
-    do hh=1,NRHS     
-     UE(:,jj,hh)=EE(:,2*KU+hh)                
-    end do    
-    endif
-
-!   Two cases, p < KU or p >= KU (p <=2*KU always since p=mod(N,2*KU)) 
-    if (p < KU) then
-!    take px2KU
-!    p rows on top and bottom
-!    needs A0 in center 2*KU-2*p in size
-!    result is 2KUx2KU
-     UE(:,(N-p)/(2*KU)+1,:)=0
-     UD(:,:,(N-p)/(2*KU)+1)=0
-     do i=1,2*KU
-      do k=1,2*KU
-       if ( (ABS(k - i) - 0  ) == 0 ) then
-        UD(i,k,(N-p)/(2*KU)+1)=1
-       endif
-      end do 
+!    Two cases, p < KU or p >= KU (p <=2*KU always since p=mod(N,2*KU))    
+!    p rows on top and bottom    
+     do i=1,p    
+      UD(i,:,(N-p)/(2*KU)+1)=EEK(i,1:2*KU)
+      UD(2*KU-i+1,:,(N-p)/(2*KU)+1)=EEK(p-i+1,1:2*KU)           
+      do hh=1,NRHS     
+       UE(i,(N-p)/(2*KU)+1,hh)=EEK(i,2*KU+hh)
+       UE(2*KU-i+1,(N-p)/(2*KU)+1,hh)=EEK(p-i+1,2*KU+hh)                
+      end do
      end do 
-
-     UD(:,:,N/(2*KU)+1)=
-
-    else
-!    take px2KU
-!    duplicate 2*KU-p middle rows
+     if (p < KU) then
+!    needs A0 in center 2(KU-p) in size
 !    result is 2KUx2KU
-     UD(:,:,N/(2*KU)+1)=
-    endif
+      do i=KU-p,3*(KU-p)-1
+       do k=1,2*KU
+        UE(:,(N-p)/(2*KU)+1,:)=0
+        UD(:,:,(N-p)/(2*KU)+1)=0
+        if ( (ABS(k - i) - 0  ) == 0 ) then
+         UD(i,k,(N-p)/(2*KU)+1)=1
+        endif
+       end do 
+      end do 
+     endif ! p < KU            
+    endif  ! info =0
     deallocate (CJL,SPJ)                        
-   endif
+   endif ! p /=0
 
 write(*,*) 'p',p
 write(*,*) Transpose(UD(:,:,N/(2*KU)+1))  
