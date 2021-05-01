@@ -113,7 +113,7 @@
          RETURN
         endif                           
        endif 
-              
+        
 !      ALL BUT THE LAST EQUATION  
        do j=(N-p)/2,2,-1                                              
         DET=D(j)*D(1-j+N)+DU(j)*D(1-j+N)*ud(1,1,1+j)-& 

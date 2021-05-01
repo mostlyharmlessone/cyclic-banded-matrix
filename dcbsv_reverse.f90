@@ -180,36 +180,35 @@
 !  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
     allocate (CjL(p,p),SPj(p,2*KU),EEK(p,2*KU+NRHS))
 !   FIRST ARRAYS now p square and px2*KU
-    j=(N-p)/2+1    ! is the start of the middle p values 
+    j=(N-p)/2+1   ! is the start of the middle p values 
     do i=1,p
      do k=1,p
       if (ABS(k-i) <=  KU) then
        CjL(i,k)=AB(KU+k-i+1,j+i-1)
-      endif
+      endif      
      end do
-!    j=(N-p)/2+1-KU    ! is the start of zj in the middle
      do k=1,KU
-      if ( k >= i ) then
-       SPj(i,k)=AB(KU+k-i+1,j-KU+i-1)
-      endif
+       if ( k >= i ) then
+        SPj(i,k)=AB(KU+k-i,j+i-1)
+       endif 
      end do
      do k=KU+1,2*KU
-      if ( k >= i ) then
-       SPj(i,k)=AB(2*KU+k-i+1,j-KU+i-1)
-      endif
-     end do 
-    end do
+       if ( k >= i ) then
+        SPj(i,k)=AB(2*KU+k-i,j+i-1)       
+       endif                     
+     end do    
+    end do            
 !   solve for UE and precursor of UD
 !   CJL zpj = -SPJ zj + bj
 !   concatenate UD precursor and UD solutions onto EEK        
      EEK(:,1:2*KU)=-SPj(:,:)
      do hh=1,NRHS
-      do i=1,2*KU
+      do i=1,KU
        EEK(:,2*KU+hh)=B(j+i-1,hh)
       end do     
-     end do
-    call DGESV(p,p+NRHS,CjL,p,IPIV,EEK,p,INFO) ! overwrites EE into solution 
-!    call GaussJordan( p, p+NRHS ,A ,p , EEK, p, INFO )   ! overwrites EE into solution                    
+     end do     
+   call DGESV(p,2*KU+NRHS,CjL,p,IPIV,EEK,p,INFO) ! overwrites EE into solution 
+!    call GaussJordan( p, p+NRHS ,CjL ,p , EEK, p, INFO )   ! overwrites EE into solution       
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
      RETURN
@@ -240,10 +239,6 @@
     endif  ! info =0
     deallocate (CJL,SPJ)                        
    endif ! p /=0
-
-write(*,*) 'p',p
-write(*,*) Transpose(UD(:,:,N/(2*KU)+1))  
-
        
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
    jj=N/(2*KU)+1  !index of number of arrays
