@@ -135,9 +135,9 @@
          INFO=j
          CALL XERBLA( 'DCTSV ', -INFO )
          RETURN
-        ENDIF                                                                                                           
+        ENDIF                                                                                           
        end do
-             
+                              
 !      LAST EQUATION 
 !      NO ud(,,j); ue(,1) iS THE SOLUTION AT 1,N  
         DET=D(1)*D(N)-DU(N)*DL(1)+DU(1)*D(N)*ud(1,1,2)-&
@@ -157,7 +157,7 @@
          INFO=j
          CALL XERBLA( 'DCTSV ', -INFO )
          RETURN
-        ENDIF        
+        ENDIF      
 
 !      BACKSUBSTITUTION B(j+1)=UE(j+1)+UD(:,:,j+1)*B(j)
        do i=1,(N-p)/2-1

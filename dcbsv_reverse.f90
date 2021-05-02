@@ -89,12 +89,7 @@
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU)
     
    p=mod(N,2*KU)
-   
-   if (p /= 0) then 
-   write(*,*) 'currently only works for p=mod(N,2*KU)=0'
-!   stop
-   endif
-   
+      
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !     November 2006
@@ -136,11 +131,11 @@
            endif 
            if ( k >= i ) then
             Sj(i,k,jj)=AB(1+k-i,j+i-1)
-           endif                     
+           endif                    
           end do 
          end do       
          do i=KU+1,2*KU
-          Bj(i,jj,1:NRHS)=B(N-2*KU+i-j+1,1:NRHS)         
+          Bj(i,jj,1:NRHS)=B(n-2*KU+i-j+1,1:NRHS)         
           do k=KU+1,2*KU
            Cj(i,k,jj)=AB(KU+k-i+1,n-2*KU+i-j+1)
            if ( k >= i ) then
@@ -152,7 +147,7 @@
           end do 
          end do                              
    end do
-
+   
 !  LAST ARRAY in reverse uses p=0 formula
    UE(:,0,:)=0
    UD(:,:,0)=0
@@ -188,14 +183,12 @@
       endif      
      end do
      do k=1,KU
-       if ( k >= i ) then
         SPj(i,k)=AB(KU+k-i,j+i-1)
-       endif 
      end do
      do k=KU+1,2*KU
-       if ( k >= i ) then
-        SPj(i,k)=AB(2*KU+k-i,j+i-1)       
-       endif                     
+        if (k <= i-KU+p) then
+        SPj(i,k)=AB(2*KU+k-i,j+i-1)
+        endif                              
      end do    
     end do            
 !   solve for UE and precursor of UD
@@ -203,7 +196,7 @@
 !   concatenate UD precursor and UD solutions onto EEK        
      EEK(:,1:2*KU)=-SPj(:,:)
      do hh=1,NRHS
-      do i=1,KU
+      do i=1,p
        EEK(:,2*KU+hh)=B(j+i-1,hh)
       end do     
      end do     
@@ -241,8 +234,8 @@
    endif ! p /=0
        
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
-   jj=N/(2*KU)+1  !index of number of arrays
-    do j=N/2,2*KU,-KU            
+   jj=(N-p)/(2*KU)+1  !index of number of arrays
+    do j=(N-p)/2,2*KU,-KU            
     jj=jj-1     
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UD(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
@@ -265,9 +258,9 @@
     do hh=1,NRHS     
      UE(:,jj,hh)=EE(:,2*KU+hh)                
     end do    
-    endif                          
+    endif   
    end do 
-        
+          
 !  LAST EQUATION in reverse jj=1  so BjL=Bj(:,1,1:NRHS); CjL=Cj(:,:,1)+matmul(Sj(:,:,1),ud(:,:,0))
     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Pj(:,:,1),2*KU,UE(:,2,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)       
     CCL(:,1:NRHS)=Bj(:,1,1:NRHS)-CC(:,1:NRHS)
@@ -285,23 +278,25 @@
     do i=1,2*KU
       Bj(i,1,1:NRHS)=CCL(i,1:NRHS)   ! write Bj with RHS
     end do                                         
-    endif    
-    
+    endif 
+        
 !   BACKSUBSTITUTION z(j+1)=UE(j+1)+UD(:,:,j+1)*z(j) 
-    do jj=1,(N-p)/(2*KU)-1
+    do jj=1,(N-p)/(2*KU)
      call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj+1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
      Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+CC(:,1:NRHS)
 !      Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+matmul(UD(:,:,jj+1),Bj(:,jj,1:NRHS))
-    end do
+    end do        
     
   do kk=1,NRHS         
     ii=1      
 !    overwrite RHS with solution Bj      
-    do j=1,(N-p)/2+1-KU,KU            
-     do i=1,2*KU
+    do j=1,(N-p)/2+1,KU            
+     do i=1,KU
       B(j+i-1,kk)=Bj(i,ii,kk)   
+     end do   
+     do i=KU+1,2*KU
       B(N-2*KU+i-j+1,kk)=Bj(i,ii,kk)   
-     end do 
+     end do  
      ii=ii+1      
     end do               
   end do    

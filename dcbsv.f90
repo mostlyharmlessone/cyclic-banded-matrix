@@ -136,10 +136,10 @@
            if ( k >= i ) then
             Sj(i,k,jj)=AB(1+k-i,j+i-1)
            endif                     
-          end do 
+          end do
          end do       
          do i=KU+1,2*KU
-          Bj(i,jj,1:NRHS)=B(N-2*KU+i-j+1,1:NRHS)         
+          Bj(i,jj,1:NRHS)=B(n-2*KU+i-j+1,1:NRHS)         
           do k=KU+1,2*KU
            Cj(i,k,jj)=AB(KU+k-i+1,n-2*KU+i-j+1)
            if ( k >= i ) then
