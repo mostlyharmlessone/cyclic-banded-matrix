@@ -180,17 +180,26 @@
      do k=1,p
       if (ABS(k-i) <=  KU) then
        CjL(i,k)=AB(KU+k-i+1,j+i-1)
+       kk=KU+k-i+1
       endif      
      end do
-     do k=1,KU
-        SPj(i,k)=AB(KU+k-i,j+i-1)
+     jj=0
+     do k=1,2*KU+1
+      if (k /= kk) then
+       jj=jj+1
+        SPj(i,jj)=AB(k,j+i-1)
+      endif
      end do
-     do k=KU+1,2*KU
-        if (k <= i-KU+p) then
-        SPj(i,k)=AB(2*KU+k-i,j+i-1)
-        endif                              
-     end do    
-    end do            
+
+write(*,*) i,CjL(i,:)
+write(*,*) i,SPj(i,:)
+write(*,*) AB(1:(2*KU+1),j+i-1)
+write(*,*) 10*INT(Transpose(AB(1:(2*KU+1),1:N)))
+    
+    end do  
+
+
+         
 !   solve for UE and precursor of UD
 !   CJL zpj = -SPJ zj + bj
 !   concatenate UD precursor and UD solutions onto EEK        
@@ -230,7 +239,7 @@
       end do 
      endif ! p < KU            
     endif  ! info =0
-    deallocate (CJL,SPJ)                        
+    deallocate (CjL,SPj)                        
    endif ! p /=0
        
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
