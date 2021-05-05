@@ -8,13 +8,13 @@ The error rate increases more rapidly with N than an LU decomposition, but is O(
 
 ## Usage
 
-Two new routines are included, dctsv.f90 which solves periodic tridiagonal systems, and dcbsv.f90, which solves general banded periodic matrices.
+Two routines are included, dctsv.f90 which solves periodic tridiagonal systems, and dcbsv.f90, which solves general banded periodic matrices.
 They are written to be reasonably easily incorporated into code using [LAPACK (Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd.November 2006)](http://www.netlib.org/lapack/) and the interfaces have been deliberately made as compatible as possible with their non-cyclic LAPACK counterparts dgbsv.f and dgtsv.f
 Both use XERBLA error reporting and require linking with LAPACK & BLAS. 
 
-Removing XERBLA from dctsv.f90 removes the LAPACK/BLAS dependency, and is provided as dctsv_nolapack.f90
+Removing XERBLA from dctsv.f90 removes the LAPACK/BLAS dependency.
 
-Substitution of intrinsic Fortran array operators instead of LAPACK & BLAS calls and substitution of LAPACK's dgesv.f  & dgetr(fsi).f by another suitable general matrix solver (e.g. the included gauss-jordan.f90) is provided as dcbsv_nolapack.f90
+Substitution of intrinsic Fortran array operators instead of LAPACK & BLAS calls and substitution of LAPACK's dgesv.f  & dgetr(fsi).f by another suitable general matrix solver (e.g. the included gauss-jordan.f90).  The intrinsic operators and calls to the alternate matrix solver are commented out immediately after their respective LAPACK calls.
 
 A fortran 90 module LapackInterface.f90 is included for compatibility with FORTRAN 77. Note that the module only needs to be compiled once and is only needed for LAPACK/BLAS compatibility.
 
@@ -30,7 +30,7 @@ or
 
 gfortran testme.f90 LapackInterface.f90 dctsv.f90 dcbsv.f90 gauss-jordan.f90 -llapack -lblas
 
-or (after commenting out dgesv in testme.f90 line 37)
+or (after commenting out dgesv in testme.f90)
 
 gfortran testme.f90 dctsv.f90 dcbsv.f90 gauss-jordan.f90 -llapack -lblas
 
@@ -40,7 +40,8 @@ gfortran -O3 testme_large.f90 dctsv.f90 dcbsv.f90 thomas.f90 -llapack -lblas
 
 or (after commenting out the lapack routines in testme_large.f90)
 
-gfortran -O3 testme_large.f90 dctsv_nolapack.f90 dcbsv_nolapack.f90 thomas.f90 gauss-jordan.f90
+gfortran -O3 testme_large.f90 dctsv.f90 dcbsv.f90 thomas.f90 gauss-jordan.f90
+
 
 parallel versions with OpenMP
 

@@ -85,7 +85,7 @@
    REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU,NRHS)      ! ue is my vectors vj 
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
    REAL(wp) :: CCL(2*KU,NRHS)
-   REAL(wp), ALLOCATABLE :: CjL(:,:),SPj(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
+   REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Pp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU)
     
    p=mod(N,2*KU)
@@ -173,23 +173,38 @@
     end do
    else
 !  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
-    allocate (CjL(p,p),SPj(p,2*KU),EEK(p,2*KU+NRHS))
+    allocate (Cp(p,p),Sp(p,2*KU),Pp(p,2*KU),Bp(p,1:NRHS),EEK(p,2*KU+NRHS))
 !   FIRST ARRAYS now p square and px2*KU
     j=(N-p)/2+1   ! is the start of the middle p values 
-    do i=1,p
-     do k=1,p
-      if (ABS(k-i) <=  KU) then
-       CjL(i,k)=AB(KU+k-i+1,j+i-1)
-       kk=KU+k-i+1
-      endif      
-     end do
-     jj=0
-     do k=1,2*KU+1
-      if (k /= kk) then
-       jj=jj+1
-        SPj(i,jj)=AB(k,j+i-1)
-      endif
-     end do
+         do i=1,p
+           Bp(i,1:NRHS)=B(j+i-1,1:NRHS)
+          do k=1,KU
+           if (k <= p) then
+            Cp(i,k)=AB(KU+k-i+1,j+i-1)
+           endif
+           if ( k <= i ) then
+            Pp(i,k)=AB(2*KU+1+k-i,j+i-1)
+           endif 
+           if ( k >= i ) then
+            Sp(i,k)=AB(1+k-i,j+i-1)
+           endif                    
+          end do 
+         end do       
+         do i=KU+1,2*KU
+          Bp(i,1:NRHS)=B(n-2*KU+i-j+1,1:NRHS)         
+          do k=KU+1,2*KU
+           if (k <= p) then
+            Cp(i,k)=AB(KU+k-i+1,n-2*KU+i-j+1)
+           endif
+           if ( k >= i ) then
+            Pp(i,k)=AB(1+k-i,n-2*KU+i-j+1)
+           endif 
+           if ( k <= i ) then
+            Sp(i,k)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
+           endif                     
+          end do 
+         end do                              
+
 
 write(*,*) i,CjL(i,:)
 write(*,*) i,SPj(i,:)
@@ -203,13 +218,13 @@ write(*,*) 10*INT(Transpose(AB(1:(2*KU+1),1:N)))
 !   solve for UE and precursor of UD
 !   CJL zpj = -SPJ zj + bj
 !   concatenate UD precursor and UD solutions onto EEK        
-     EEK(:,1:2*KU)=-SPj(:,:)
+     EEK(:,1:2*KU)=-Sp(:,:)
      do hh=1,NRHS
       do i=1,p
-       EEK(:,2*KU+hh)=B(j+i-1,hh)
+       EEK(:,2*KU+hh)=Bp(j+i-1,hh)
       end do     
      end do     
-   call DGESV(p,2*KU+NRHS,CjL,p,IPIV,EEK,p,INFO) ! overwrites EE into solution 
+   call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EE into solution 
 !    call GaussJordan( p, p+NRHS ,CjL ,p , EEK, p, INFO )   ! overwrites EE into solution       
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
@@ -239,7 +254,7 @@ write(*,*) 10*INT(Transpose(AB(1:(2*KU+1),1:N)))
       end do 
      endif ! p < KU            
     endif  ! info =0
-    deallocate (CjL,SPj)                        
+    deallocate (Cp,Sp,Pp,Bp)                        
    endif ! p /=0
        
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
