@@ -85,7 +85,7 @@
    REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU,NRHS)      ! ue is my vectors vj 
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
    REAL(wp) :: CCL(2*KU,NRHS)
-   REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Pp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
+   REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU)
     
    p=mod(N,2*KU)
@@ -173,55 +173,57 @@
     end do
    else
 !  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
-    allocate (Cp(p,p),Sp(p,2*KU),Pp(p,2*KU),Bp(p,1:NRHS),EEK(p,2*KU+NRHS))
+    allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS))
 !   FIRST ARRAYS now p square and px2*KU
+    Cp=0
+    Sp=0
     j=(N-p)/2+1   ! is the start of the middle p values 
-         do i=1,p
-           Bp(i,1:NRHS)=B(j+i-1,1:NRHS)
-          do k=1,KU
-           if (k <= p) then
-            Cp(i,k)=AB(KU+k-i+1,j+i-1)
-           endif
-           if ( k <= i ) then
-            Pp(i,k)=AB(2*KU+1+k-i,j+i-1)
-           endif 
-           if ( k >= i ) then
-            Sp(i,k)=AB(1+k-i,j+i-1)
-           endif                    
-          end do 
-         end do               
-          do k=KU+1,2*KU
-           if (k <= p) then
-            Cp(i,k)=AB(KU+k-i+1,n-2*KU+i-j+1)
-           endif
-           if ( k >= i .AND. k <= p) then
-            Pp(i,k)=AB(1+k-i,n-2*KU+i-j+1)
-           endif 
-           if ( k <= i .AND. k <= p) then
-            Sp(i,k)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
-           endif                     
-          end do                              
+                             
+!write(*,*) i,Cp(i,:)
+!write (*,*) 'j,p,j+i-1',j,p,j+i-1
+!write(*,*) i,Sp(i,:)
 
+do i=1,p
+  write(*,*) 'AB(1:(2*KU+1),j+k),j,j+i-1',j,j+i-1
+  write(*,*) AB(1:(2*KU+1),j+i-1)
+  Bp(i,1:NRHS)=B(j+i-1,1:NRHS)
+ do k=1,p
+  Cp(i,k)=AB(KU+k-i+1,j+i-1)
+ end do
+end do
 
-write(*,*) i,Cp(i,:)
-write(*,*) i,Sp(i,:)
-write(*,*) AB(1:(2*KU+1),j+i-1)
-write(*,*) 10*INT(Transpose(AB(1:(2*KU+1),1:N)))
-     
+do i=1,p
+ do k=1,KU
+ if (k >= i) then
+  if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
+   Sp(i,k)=AB(1+k-i,j+i-1)
+  endif
+ end if
+end do 
+do k=KU+1,2*KU
+  if (2*KU+k-i >= 1 .AND. 2*KU+k-i <= 2*KU+1 ) then
+   Sp(i,k)=AB(2*KU+k-i,j+i-1)
+  endif
+ end do
+end do
 
+write (*,*) 'Sp(:,:)'
+write (*,*) Transpose(Sp(:,:))
+write (*,*) 'Cp(:,:)'
+write (*,*) Transpose(Cp(:,:))     
 
-         
+        
 !   solve for UE and precursor of UD
 !   CJL zpj = -SPJ zj + bj
 !   concatenate UD precursor and UD solutions onto EEK        
      EEK(:,1:2*KU)=-Sp(:,:)
      do hh=1,NRHS
-      do i=1,p
-       EEK(:,2*KU+hh)=B(j+i-1,hh)
+      do k=1,p
+       EEK(:,2*KU+hh)=Bp(k,hh)
       end do     
      end do     
    call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EE into solution 
-!    call GaussJordan( p, 2*KU+NRHS ,Cp ,p , EEK, p, INFO )   ! overwrites EE into solution       
+!    call GaussJordan( p, p+NRHS ,CjL ,p , EEK, p, INFO )   ! overwrites EE into solution       
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
      RETURN
@@ -230,12 +232,17 @@ write(*,*) 10*INT(Transpose(AB(1:(2*KU+1),1:N)))
 !    p rows on top and bottom    
      do i=1,p    
       UD(i,:,(N-p)/(2*KU)+1)=EEK(i,1:2*KU)
-      UD(2*KU-i+1,:,(N-p)/(2*KU)+1)=EEK(p-i+1,1:2*KU)           
+      UD(2*KU-i+1,:,(N-p)/(2*KU)+1)=EEK(p-i+1,1:2*KU)                  
       do hh=1,NRHS     
        UE(i,(N-p)/(2*KU)+1,hh)=EEK(i,2*KU+hh)
-       UE(2*KU-i+1,(N-p)/(2*KU)+1,hh)=EEK(p-i+1,2*KU+hh)                
+       UE(2*KU-i+1,(N-p)/(2*KU)+1,hh)=EEK(p-i+1,2*KU+hh)                       
       end do
      end do 
+
+write(*,*) 'UD(:,:,(N-p)/(2*KU)+1)'
+write(*,*) Transpose(UD(:,:,(N-p)/(2*KU)+1))
+write(*,*) 'p:',p
+
      if (p < KU) then
 !    needs A0 in center 2(KU-p) in size
 !    result is 2KUx2KU
@@ -250,11 +257,11 @@ write(*,*) 10*INT(Transpose(AB(1:(2*KU+1),1:N)))
       end do 
      endif ! p < KU            
     endif  ! info =0
-    deallocate (Cp,Sp,Pp,Bp)                        
+    deallocate (Cp,Sp,Bp)                        
    endif ! p /=0
        
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
-   jj=(N-p)/(2*KU)+1  !index of number of arrays
+   jj=(N-p)/(2*KU)+1  !index of number of arrays   
     do j=(N-p)/2,2*KU,-KU            
     jj=jj-1     
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UD(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
