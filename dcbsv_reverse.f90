@@ -189,29 +189,25 @@
             Sp(i,k)=AB(1+k-i,j+i-1)
            endif                    
           end do 
-         end do       
-         do i=KU+1,2*KU
-          Bp(i,1:NRHS)=B(n-2*KU+i-j+1,1:NRHS)         
+         end do               
           do k=KU+1,2*KU
            if (k <= p) then
             Cp(i,k)=AB(KU+k-i+1,n-2*KU+i-j+1)
            endif
-           if ( k >= i ) then
+           if ( k >= i .AND. k <= p) then
             Pp(i,k)=AB(1+k-i,n-2*KU+i-j+1)
            endif 
-           if ( k <= i ) then
+           if ( k <= i .AND. k <= p) then
             Sp(i,k)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
            endif                     
-          end do 
-         end do                              
+          end do                              
 
 
-write(*,*) i,CjL(i,:)
-write(*,*) i,SPj(i,:)
+write(*,*) i,Cp(i,:)
+write(*,*) i,Sp(i,:)
 write(*,*) AB(1:(2*KU+1),j+i-1)
 write(*,*) 10*INT(Transpose(AB(1:(2*KU+1),1:N)))
-    
-    end do  
+     
 
 
          
@@ -221,11 +217,11 @@ write(*,*) 10*INT(Transpose(AB(1:(2*KU+1),1:N)))
      EEK(:,1:2*KU)=-Sp(:,:)
      do hh=1,NRHS
       do i=1,p
-       EEK(:,2*KU+hh)=Bp(j+i-1,hh)
+       EEK(:,2*KU+hh)=B(j+i-1,hh)
       end do     
      end do     
    call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EE into solution 
-!    call GaussJordan( p, p+NRHS ,CjL ,p , EEK, p, INFO )   ! overwrites EE into solution       
+!    call GaussJordan( p, 2*KU+NRHS ,Cp ,p , EEK, p, INFO )   ! overwrites EE into solution       
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
      RETURN
