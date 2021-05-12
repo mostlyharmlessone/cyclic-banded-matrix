@@ -112,13 +112,8 @@
          CALL XERBLA( 'DCTSV ', -INFO )
          RETURN
         endif                           
-       endif 
+       endif
 
-write(*,*) 'dctsv:UD(:,:,(N-p)/(2*KU)+1)'
-write(*,*) Transpose(UD(:,:,(N)/(2)+1))
-write(*,*) ' '
-
-        
 !      ALL BUT THE LAST EQUATION  
        do j=(N-p)/2,2,-1                                              
         DET=D(j)*D(1-j+N)+DU(j)*D(1-j+N)*ud(1,1,1+j)-& 

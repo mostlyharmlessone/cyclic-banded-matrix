@@ -173,6 +173,21 @@
     end do
    else
 !  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
+    UE(:,(N-p)/(2*KU)+1,:)=0
+    UD(:,:,(N-p)/(2*KU)+1)=0
+     if (p < KU) then
+!    needs A0 in center 2(KU-p) in size
+!    result is 2KUx2KU
+!     sqsize=2*KU-2*p
+      do i=p+1,2*KU-p
+       do k=p+1,2*KU-p
+        if ( ABS(k - i) == (KU-p) ) then
+         UD(i,k,(N-p)/(2*KU)+1)=1
+        endif
+       end do 
+      end do 
+     endif ! p < KU
+
     allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS))
 !   FIRST ARRAYS now p square and px2*KU
     Cp=0
@@ -200,18 +215,19 @@ do i=1,p
   endif
  end if
 end do 
-do k=KU+1,2*KU
-  if (2*KU+k-i >= 1 .AND. 2*KU+k-i <= 2*KU+1 ) then
-   Sp(i,k)=AB(2*KU+k-i,j+i-1)
+ do k=KU+1,2*KU
+! if (k-KU <= i) then  
+  if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
+   Sp(i,k)=AB(1+k-i,j+i-1)
   endif
- end do
+! endif
+end do
 end do
 
 write (*,*) 'Sp(:,:)'
 write (*,*) Transpose(Sp(:,:))
 write (*,*) 'Cp(:,:)'
 write (*,*) Transpose(Cp(:,:))     
-
         
 !   solve for UE and precursor of UD
 !   CJL zpj = -SPJ zj + bj
@@ -242,20 +258,7 @@ write (*,*) Transpose(Cp(:,:))
 write(*,*) 'UD(:,:,(N-p)/(2*KU)+1)'
 write(*,*) Transpose(UD(:,:,(N-p)/(2*KU)+1))
 write(*,*) 'p:',p
-
-     if (p < KU) then
-!    needs A0 in center 2(KU-p) in size
-!    result is 2KUx2KU
-      do i=KU-p,3*(KU-p)-1
-       do k=1,2*KU
-        UE(:,(N-p)/(2*KU)+1,:)=0
-        UD(:,:,(N-p)/(2*KU)+1)=0
-        if ( (ABS(k - i) - 0  ) == 0 ) then
-         UD(i,k,(N-p)/(2*KU)+1)=1
-        endif
-       end do 
-      end do 
-     endif ! p < KU            
+            
     endif  ! info =0
     deallocate (Cp,Sp,Bp)                        
    endif ! p /=0
