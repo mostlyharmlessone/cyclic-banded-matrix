@@ -113,6 +113,11 @@
          RETURN
         endif                           
        endif 
+
+write(*,*) 'dctsv:UD(:,:,(N-p)/(2*KU)+1)'
+write(*,*) Transpose(UD(:,:,(N)/(2)+1))
+write(*,*) ' '
+
         
 !      ALL BUT THE LAST EQUATION  
        do j=(N-p)/2,2,-1                                              

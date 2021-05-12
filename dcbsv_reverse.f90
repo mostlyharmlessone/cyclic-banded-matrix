@@ -184,18 +184,28 @@
 !write(*,*) i,Sp(i,:)
 
 
-do k=1,p
-  write(*,*) 'AB(1:(2*KU+1),j+k),j,j+k-1',j,j+k-1
-  write(*,*) AB(1:(2*KU+1),j+k-1)
- do i=1,p
-  Cp(k,i)=AB(KU+i-k+1,j+k)
-!  write(*,*) AB(KU+i-k+1,j+k)
-  if (i-k >= 1 .AND. i-k <= 2*KU+1 ) then
-   Sp(k,i-1)=AB(i-k,j+k-1)
+do i=1,p
+  write(*,*) 'AB(1:(2*KU+1),j+k),j,j+i-1',j,j+i-1
+  write(*,*) AB(1:(2*KU+1),j+i-1)
+ do k=1,p
+  Cp(i,k)=AB(KU+k-i+1,j+i-1)
+ end do
+end do
+
+do i=1,p
+ do k=1,KU
+ if (k >= i) then
+  if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
+   Sp(i,k)=AB(1+k-i,j+i-1)
   endif
-  if (2*KU+1+i-k+1 >= 1 .AND. 2*KU+1+i-k+1 <= 2*KU+1 ) then
-   Sp(i+1,k)=AB(2*KU+2+i-k,j+k-1)
+ end if
+end do 
+do k=KU+1,2*KU
+! if (k <= i + KU ) then
+  if (KU+k-i+1 >= 1 .AND. KU+k-i+1 <= 2*KU+1 ) then
+   Sp(i,k)=AB(KU+1+k-i,j+i-1)
   endif
+! endif
  end do
 end do
 
@@ -203,8 +213,9 @@ write(*,*) '10*INT(Transpose(AB(1:(2*KU+1),1:N)))'
 write(*,*) 10*INT(Transpose(AB(1:(2*KU+1),1:N)))
 
 write (*,*) 'Sp(:,:)'
-write (*,*) Sp(:,:)
-     
+write (*,*) Transpose(Sp(:,:))
+write (*,*) 'Cp(:,:)'
+write (*,*) Transpose(Cp(:,:))     
 !stop
 
          
