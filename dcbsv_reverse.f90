@@ -199,29 +199,25 @@
 !write(*,*) i,Sp(i,:)
 
 do i=1,p
-  write(*,*) 'AB(1:(2*KU+1),j+k),j,j+i-1',j,j+i-1
+  write(*,*) 'AB(1:(2*KU+1),j+i-1),j,j+i-1',j,j+i-1
   write(*,*) AB(1:(2*KU+1),j+i-1)
   Bp(i,1:NRHS)=B(j+i-1,1:NRHS)
  do k=1,p
-  Cp(i,k)=AB(KU+k-i+1,j+i-1)
+  if (KU+k-i+1 >= 1 .AND. KU+k-i+1 <= 2*KU+1 ) then
+   Cp(i,k)=AB(KU+k-i+1,j+i-1)
+  endif 
  end do
-end do
-
-do i=1,p
+ do kk=KU+p-i+2,2*KU+1 
+  k=kk-p+i-1
+  Sp(i,k)=AB(kk,j+i-1)
+ end do 
  do k=1,KU
- if (k >= i) then
-  if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
-   Sp(i,k)=AB(1+k-i,j+i-1)
-  endif
- end if
-end do 
- do k=KU+1,2*KU
-! if (k-KU <= i) then  
-  if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
-   Sp(i,k)=AB(1+k-i,j+i-1)
-  endif
-! endif
-end do
+  if (k >= i) then
+   if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
+    Sp(i,k)=AB(1+k-i,j+i-1)
+   endif
+  end if
+ end do
 end do
 
 write (*,*) 'Sp(:,:)'
