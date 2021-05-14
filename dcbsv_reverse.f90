@@ -159,7 +159,6 @@
      end do 
    end do        
                
-
 !  FIRST EQUATION if p=0 V(N/(2*KU)=0 & A(N/(2*KU) = permuted identity
    if (p == 0) then
     UE(:,N/(2*KU)+1,:)=0
@@ -186,71 +185,81 @@
         endif
        end do 
       end do 
-     endif ! p < KU
+     endif
 
-    allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS))
-!   FIRST ARRAYS now p square and px2*KU
-    Cp=0
-    Sp=0
-    j=(N-p)/2+1   ! is the start of the middle p values 
-                             
-!write(*,*) i,Cp(i,:)
-!write (*,*) 'j,p,j+i-1',j,p,j+i-1
-!write(*,*) i,Sp(i,:)
+   allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS))
+!  FIRST ARRAYS now p square and px2*KU
+   Cp=0
+   Sp=0
+   j=(N-p)/2+1   ! is the start of the middle p values 
+                       
+   do i=1,p
+    write(*,*) 'AB(1:(2*KU+1),j+i-1),j,j+i-1',j,j+i-1
+    write(*,*) AB(1:(2*KU+1),j+i-1)
+    Bp(i,1:NRHS)=B(j+i-1,1:NRHS)
+    do k=1,p
+     if (KU+k-i+1 >= 1 .AND. KU+k-i+1 <= 2*KU+1 ) then
+      Cp(i,k)=AB(KU+k-i+1,j+i-1)
+     endif 
+    end do
+    do k=KU+1,2*KU-p+i 
+     Sp(i,k)=AB(k+p-i+1,j+i-1)
+    end do 
+    do k=1,KU
+     if (k >= i) then
+      if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
+       Sp(i,k)=AB(1+k-i,j+i-1)
+      endif
+     endif
+    end do
+   end do
 
-do i=1,p
-  write(*,*) 'AB(1:(2*KU+1),j+i-1),j,j+i-1',j,j+i-1
-  write(*,*) AB(1:(2*KU+1),j+i-1)
-  Bp(i,1:NRHS)=B(j+i-1,1:NRHS)
- do k=1,p
-  if (KU+k-i+1 >= 1 .AND. KU+k-i+1 <= 2*KU+1 ) then
-   Cp(i,k)=AB(KU+k-i+1,j+i-1)
-  endif 
- end do
- do kk=KU+p-i+2,2*KU+1 
-  k=kk-p+i-1
-  Sp(i,k)=AB(kk,j+i-1)
- end do 
- do k=1,KU
-  if (k >= i) then
-   if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
-    Sp(i,k)=AB(1+k-i,j+i-1)
-   endif
-  end if
- end do
-end do
-
+!write (*,*) 'Sj(:,:,jj)',jj
+!write (*,*) Transpose(Sj(:,:,jj))
 write (*,*) 'Sp(:,:)'
 write (*,*) Transpose(Sp(:,:))
 write (*,*) 'Cp(:,:)'
 write (*,*) Transpose(Cp(:,:))     
         
 !   solve for UE and precursor of UD
-!   CJL zpj = -SPJ zj + bj
+!   Cp zpj = -Sp zj + Bp
 !   concatenate UD precursor and UD solutions onto EEK        
-     EEK(:,1:2*KU)=-Sp(:,:)
-     do hh=1,NRHS
-      do k=1,p
-       EEK(:,2*KU+hh)=Bp(k,hh)
-      end do     
+    EEK(:,1:2*KU)=-Sp(:,:)
+    do hh=1,NRHS
+     do k=1,p
+      EEK(:,2*KU+hh)=Bp(k,hh)
      end do     
-   call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EE into solution 
-!    call GaussJordan( p, p+NRHS ,CjL ,p , EEK, p, INFO )   ! overwrites EE into solution       
+    end do     
+    call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EE into solution 
+!    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )   ! overwrites EE into solution       
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
      RETURN
     else
 !    Two cases, p < KU or p >= KU (p <=2*KU always since p=mod(N,2*KU))    
 !    p rows on top and bottom    
+     if ( p <= KU ) then     
      do i=1,p    
       UD(i,:,(N-p)/(2*KU)+1)=EEK(i,1:2*KU)
       UD(2*KU-i+1,:,(N-p)/(2*KU)+1)=EEK(p-i+1,1:2*KU)                  
       do hh=1,NRHS     
        UE(i,(N-p)/(2*KU)+1,hh)=EEK(i,2*KU+hh)
-       UE(2*KU-i+1,(N-p)/(2*KU)+1,hh)=EEK(p-i+1,2*KU+hh)                       
+       UE(2*KU-i+1,(N-p)/(2*KU)+1,hh)=EEK(p-i+1,2*KU+hh)                 
       end do
-     end do 
+     end do
+     else     ! p > KU
+     do i=1,KU    
+      UD(i,:,(N-p)/(2*KU)+1)=EEK(i,1:2*KU)
+      UD(2*KU-i+1,:,(N-p)/(2*KU)+1)=EEK(p-i+1,1:2*KU)                  
+      do hh=1,NRHS     
+       UE(i,(N-p)/(2*KU)+1,hh)=EEK(i,2*KU+hh)
+       UE(2*KU-i+1,(N-p)/(2*KU)+1,hh)=EEK(p-i+1,2*KU+hh)                 
+      end do
+     end do
+     endif
 
+write(*,*) 'EEK(:,1:2*KU)'
+write(*,*) Transpose(EEK(:,1:2*KU))
 write(*,*) 'UD(:,:,(N-p)/(2*KU)+1)'
 write(*,*) Transpose(UD(:,:,(N-p)/(2*KU)+1))
 write(*,*) 'p:',p
@@ -261,8 +270,11 @@ write(*,*) 'p:',p
        
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
    jj=(N-p)/(2*KU)+1  !index of number of arrays   
-    do j=(N-p)/2,2*KU,-KU            
-    jj=jj-1     
+    do j=(N-p)/2,2*KU,-KU ! j not used; just a counter      
+    jj=jj-1 
+
+write(*,*) 'j,jj',j,jj
+    
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UD(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
 !    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UD(:,:,jj+1))        
