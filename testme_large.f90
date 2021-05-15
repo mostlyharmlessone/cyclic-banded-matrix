@@ -2,8 +2,8 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=41! size of problem
-    INTEGER, PARAMETER :: KU=3 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: n=60000 ! size of problem
+    INTEGER, PARAMETER :: KU=300 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0  ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp) :: d(n,2),a(n),b(n),c(n),s(n,2),dd(n,2),z(n,2)
@@ -21,7 +21,7 @@
      do j=1,n
       AB(i+KU+1,j)=20.0*(i)**2 + 5.*j/(1.0*n)  ! without the second term, can be ill-conditioned, eg N=9, KU=2 
       if (i == 0) then
-       AB(i+KU+1,j)=AB(i+KU+1,j)+100           ! emphasize diagonal dominance
+       AB(i+KU+1,j)=AB(i+KU+1,j)+300           ! emphasize diagonal dominance
       end if
       if (i >= KU) then
        AB(i+KU+1,j)=AB(i+KU+1,j)+1.5           ! asymmetry
@@ -132,7 +132,7 @@
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
     
-       write(*,*) d(:,1)       
+!       write(*,*) d(:,1)       
 
 !    LAPACK routine for non-cyclic system
      IF (N < 60000) then

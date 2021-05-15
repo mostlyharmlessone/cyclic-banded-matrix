@@ -77,12 +77,12 @@
    Real(wp), Intent(INOUT) ::  B( ldb, * )
 
 !  .. Work space ..
-   REAL(wp) :: Bj(2*KU,N/(2*KU)+2*KU,NRHS)  
-   REAL(wp) :: Cj(2*KU,2*KU,N/(2*KU)+2*KU)
-   REAL(wp) :: Pj(2*KU,2*KU,N/(2*KU)+2*KU)
-   REAL(wp) :: Sj(2*KU,2*KU,N/(2*KU)+2*KU)       
-   REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+2*KU) ! ud is my set of matrices Aj
-   REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU,NRHS)      ! ue is my vectors vj 
+   REAL(wp) :: Bj(2*KU,N/(2*KU)+1,NRHS)  
+   REAL(wp) :: Cj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp) :: Pj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp) :: Sj(2*KU,2*KU,N/(2*KU)+1)       
+   REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+1) ! ud is my set of matrices Aj
+   REAL(wp) :: UE(2*KU,0:N/(2*KU)+1,NRHS)      ! ue is my vectors vj 
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
    REAL(wp) :: CCL(2*KU,NRHS)
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
@@ -171,6 +171,7 @@
      end do 
     end do
    else
+   
 !  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
     UE(:,(N-p)/(2*KU)+1,:)=0
     UD(:,:,(N-p)/(2*KU)+1)=0
@@ -186,16 +187,13 @@
        end do 
       end do 
      endif
-
    allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS))
-!  FIRST ARRAYS now p square and px2*KU
+!  FIRST ARRAYS now p square and px2*KU at the middle values
    Cp=0
    Sp=0
-   j=(N-p)/2+1   ! is the start of the middle p values 
-                       
+   EEK=0
+   j=(N-p)/2+1   ! is the start of the middle p values                        
    do i=1,p
-    write(*,*) 'AB(1:(2*KU+1),j+i-1),j,j+i-1',j,j+i-1
-    write(*,*) AB(1:(2*KU+1),j+i-1)
     Bp(i,1:NRHS)=B(j+i-1,1:NRHS)
     do k=1,p
      if (KU+k-i+1 >= 1 .AND. KU+k-i+1 <= 2*KU+1 ) then
@@ -212,26 +210,16 @@
       endif
      endif
     end do
-   end do
-
-!write (*,*) 'Sj(:,:,jj)',jj
-!write (*,*) Transpose(Sj(:,:,jj))
-write (*,*) 'Sp(:,:)'
-write (*,*) Transpose(Sp(:,:))
-write (*,*) 'Cp(:,:)'
-write (*,*) Transpose(Cp(:,:))     
-        
+   end do       
 !   solve for UE and precursor of UD
 !   Cp zpj = -Sp zj + Bp
 !   concatenate UD precursor and UD solutions onto EEK        
     EEK(:,1:2*KU)=-Sp(:,:)
     do hh=1,NRHS
-     do k=1,p
-      EEK(:,2*KU+hh)=Bp(k,hh)
-     end do     
+      EEK(:,2*KU+hh)=Bp(:,hh)     
     end do     
-    call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EE into solution 
-!    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )   ! overwrites EE into solution       
+    call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EEK into solution, overwrites Cp 
+!    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )   ! overwrites EEK into solution, overwrites Cp into inverse     
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
      RETURN
@@ -256,25 +244,15 @@ write (*,*) Transpose(Cp(:,:))
        UE(2*KU-i+1,(N-p)/(2*KU)+1,hh)=EEK(p-i+1,2*KU+hh)                 
       end do
      end do
-     endif
-
-write(*,*) 'EEK(:,1:2*KU)'
-write(*,*) Transpose(EEK(:,1:2*KU))
-write(*,*) 'UD(:,:,(N-p)/(2*KU)+1)'
-write(*,*) Transpose(UD(:,:,(N-p)/(2*KU)+1))
-write(*,*) 'p:',p
-            
+     endif          
     endif  ! info =0
-    deallocate (Cp,Sp,Bp)                        
+    deallocate (Cp,Sp,Bp,EEK)                        
    endif ! p /=0
        
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
    jj=(N-p)/(2*KU)+1  !index of number of arrays   
     do j=(N-p)/2,2*KU,-KU ! j not used; just a counter      
-    jj=jj-1 
-
-write(*,*) 'j,jj',j,jj
-    
+    jj=jj-1    
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UD(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
 !    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UD(:,:,jj+1))        
@@ -327,7 +305,7 @@ write(*,*) 'j,jj',j,jj
     
   do kk=1,NRHS         
     ii=1      
-!    overwrite RHS with solution Bj      
+!   overwrite RHS with solution Bj      
     do j=1,(N-p)/2+1,KU            
      do i=1,KU
       B(j+i-1,kk)=Bj(i,ii,kk)   
@@ -338,6 +316,5 @@ write(*,*) 'j,jj',j,jj
      ii=ii+1      
     end do               
   end do    
-
   
 END SUBROUTINE dcbsv
