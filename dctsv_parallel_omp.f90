@@ -65,8 +65,9 @@
        REAL(wp) :: DR( N ), DLR( N ), DUR( N )  ! no output no LU factors
        REAL(wp) :: BR( N, NRHS ) ! on entry RHS, on exit, solution        
 !      ..
-       REAL(wp) :: udR(2,2,0:N/2+1),ueR(2,0:N/2+1,NRHS),DET2  ! udR is my set of matrices Aj(bar) ueR is my vectors vj(bar)
-       REAL(wp) :: ud(2,2,0:N/2+1),ue(2,0:N/2+1,NRHS),DET     !  ud is my set of matrices Aj ue is my vectors vj 
+       REAL(wp) :: udR(2,2,N/4:N/2+1),ueR(2,N/4:N/2+1,NRHS),DET2  ! udR is my set of matrices Aj(bar) ueR is my vectors vj(bar)
+       REAL(wp) :: ud(2,2,0:N/4+1),ue(2,0:N/4+1,NRHS),DET     !  ud is my set of matrices Aj ue is my vectors vj
+
        INTEGER :: i,j,k,p,L  
 
 !      needed for f90+ calling of f77 routines
@@ -223,8 +224,8 @@
        INTEGER, INTENT(OUT) :: INFO 
 !      ..
 !      .. Array Arguments ..
-       REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * ), B( LDB, * ) 
-       REAL(wp) ::  ud(2,2,0:N/2+1),ue(2,0:N/2+1,NRHS) 
+       REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * ), B( LDB, * )  
+       REAL(wp) :: ud(2,2,0:N/4+1),ue(2,0:N/4+1,NRHS)
 !      ..
        REAL(wp) :: DET  !  ud is my set of matrices Aj ue is my vectors vj 
        INTEGER :: i,j,p,L
@@ -265,7 +266,7 @@
 !      ..
 !      .. Array Arguments ..
        REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * ), B( LDB, * ) 
-       REAL(wp) ::  udR(2,2,0:N/2+1),ueR(2,0:N/2+1,NRHS) 
+       REAL(wp) :: udR(2,2,N/4:N/2+1),ueR(2,N/4:N/2+1,NRHS) 
 !      ..
        REAL(wp) :: DET  !  ud is my set of matrices Aj ue is my vectors vj 
        INTEGER :: i,j,p,L
