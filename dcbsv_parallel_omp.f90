@@ -1,5 +1,6 @@
    SUBROUTINE DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
-   Use lapackinterface  
+   Use lapackinterface 
+   USE OMP_LIB     ! optionally can compile with -fopenmp, but actually slower 
    IMPLICIT NONE
 !   Copyright (c) 2021   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
@@ -77,21 +78,34 @@
    Real(wp), Intent(INOUT) ::  B( ldb, * )
 
 !  .. Work space ..
-   REAL(wp) :: Bj(2*KU,N/(2*KU)+1,NRHS)  
-   REAL(wp) :: Cj(2*KU,2*KU,N/(2*KU)+1)
-   REAL(wp) :: Pj(2*KU,2*KU,N/(2*KU)+1)
-   REAL(wp) :: Sj(2*KU,2*KU,N/(2*KU)+1)       
-   REAL(wp) :: UD(2*KU,2*KU,0:N/(4*KU)+1)      ! ud is my set of matrices Aj
-   REAL(wp) :: UE(2*KU,0:N/(4*KU)+1,NRHS)      ! ue is my vectors vj 
-   REAL(wp) :: UDR(2*KU,2*KU,N/(4*KU):N/(2*KU)+1)     ! udr is my set of matrices Ajbar
-   REAL(wp) :: UER(2*KU,N/(4*KU):N/(2*KU)+1,NRHS)     ! uer is my vectors vjbar 
-   REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
-   REAL(wp) :: CCL(2*KU,NRHS),IDENT(2*KU,2*KU)
+   REAL(wp),ALLOCATABLE :: Bj(:,:,:)  
+   REAL(wp),ALLOCATABLE :: Cj(:,:,:)
+   REAL(wp),ALLOCATABLE :: Pj(:,:,:)
+   REAL(wp),ALLOCATABLE :: Sj(:,:,:)       
+   REAL(wp),ALLOCATABLE :: UD(:,:,:)      ! ud is my set of matrices Aj
+   REAL(wp),ALLOCATABLE :: UE(:,:,:)      ! ue is my vectors vj 
+   REAL(wp),ALLOCATABLE :: UDR(:,:,:)     ! udr is my set of matrices Ajbar
+   REAL(wp),ALLOCATABLE :: UER(:,:,:)     ! uer is my vectors vjbar 
+   REAL(wp),ALLOCATABLE :: A(:,:),AA(:,:),CC(:,:),EE(:,:) ! working copies
+   REAL(wp),ALLOCATABLE :: CCL(:,:),IDENT(:,:)
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU),L,LL
+   INTEGER, ALLOCATABLE :: ipiv(:)
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,L,LL
     
    p=mod(N,2*KU)
    L=(N-p)/4
+
+   allocate(Bj(2*KU,N/(2*KU)+1,NRHS),Cj(2*KU,2*KU,N/(2*KU)+1))
+   allocate(Pj(2*KU,2*KU,N/(2*KU)+1),Sj(2*KU,2*KU,N/(2*KU)+1))
+   allocate(UD(2*KU,2*KU,0:N/(4*KU)+1),UE(2*KU,0:N/(4*KU)+1,NRHS))
+   allocate(UDR(2*KU,2*KU,N/(4*KU):N/(2*KU)+1),UER(2*KU,N/(4*KU):N/(2*KU)+1,NRHS))
+   allocate(A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS))
+   allocate(CCL(2*KU,NRHS),IDENT(2*KU,2*KU),IPIV(2*KU))
+   if (p /= 0) then
+    allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS))
+   endif
+
+!!!$OMP PARALLEL num_threads(2)
       
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
@@ -108,7 +122,7 @@
       END IF
       IF( INFO.NE.0 ) THEN
          CALL XERBLA( 'DCBSV ', INFO )
-         RETURN
+!         RETURN
       END IF
 !     end info handling
 !
@@ -192,7 +206,6 @@
        end do 
       end do 
      endif
-   allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS))
 !  FIRST ARRAYS now p square and px2*KU at the middle values
    Cp=0
    Sp=0
@@ -227,7 +240,7 @@
 !    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )   ! overwrites EEK into solution, overwrites Cp into inverse     
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
-     RETURN
+!     RETURN
     else
 !    Two cases, p < KU or p >= KU (p <=2*KU always since p=mod(N,2*KU))    
 !    p rows on top and bottom    
@@ -250,69 +263,17 @@
       end do
      end do
      endif          
-    endif  ! info =0
-    deallocate (Cp,Sp,Bp,EEK)                        
+    endif  ! info =0                        
    endif ! p /=0
 
-!! BACKWARD       
-!  ALL BUT THE LAST EQUATION, GENERATE UDR & UER  ! (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
-   jj=(N-p)/(2*KU)+1  !index of number of arrays   
-    do j=(N-p)/2,L+KU,-KU ! j not used; just a counter      
-    jj=jj-1    
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UDR(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
-    A=Cj(:,:,jj)+AA
-!    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UDR(:,:,jj+1))        
-!   concatenate Aj and vj solutions onto EE        
-     EE(:,1:2*KU)=-Sj(:,:,jj)
-     do hh=1,NRHS
-      call DGEMV('N',2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UER(:,jj+1,hh),1,0.0_wp,CC(:,hh),1) 
-      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
-!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Pj(:,:,jj),UER(:,jj+1,hh))
-     end do
-!    compute next UD,UE using factored A
-    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
-!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                    
-    if (info /= 0) then
-     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
-     RETURN
-    else
-     UDR(:,:,jj)=EE(:,1:2*KU)
-    do hh=1,NRHS     
-     UER(:,jj,hh)=EE(:,2*KU+hh)                
-    end do    
-    endif  
-   end do
+!$OMP PARALLEL num_threads(2) 
+!  separate iterative parts into subroutines so each thread can work in parallel
+   call forward( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UD, UE, JJ)
+   call backward( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UDR, UER, LL)
+!$OMP END PARALLEL
 
-   LL=jj
-
-!! FORWARD   
-   !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  ! (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
-   jj=0  !index of number of arrays
-   do j=L,(N-p)/2,KU      
-    jj=jj+1     
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
-    A=Cj(:,:,jj)+AA
-!    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))        
-!   concatenate Aj and vj solutions onto EE        
-     EE(:,1:2*KU)=-Pj(:,:,jj)
-     do hh=1,NRHS
-      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1) 
-      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
-!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
-     end do
-!    compute next UD,UE using factored A
-    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
-!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                   
-    if (info /= 0) then
-     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
-     RETURN
-    else
-     UD(:,:,jj)=EE(:,1:2*KU)
-    do hh=1,NRHS     
-     UE(:,jj,hh)=EE(:,2*KU+hh)                
-    end do    
-    endif              
-   end do 
+!!    !$OMP ATOMIC UPDATE  or BARRIER  instead and for more threads?? or place p allocatable statements
+!!    above OMP directive to include more in OMP area?
 
    jj=LL  ! count forward is count backward + 1
                      
@@ -331,7 +292,7 @@
 !    call GaussJordan( 2*KU, NRHS, A ,2*KU, CCL(:,1:NRHS), 2*KU, INFO )  ! overwrites CCL       
     if (info /= 0) then        
      CALL XERBLA( 'DGESV/DCBSV ', INFO )
-     RETURN
+!     RETURN
     else              
       Bj(:,jj,1:NRHS)=CCL(:,1:NRHS)   ! write Bj with RHS                                        
     endif
@@ -350,7 +311,7 @@
 !    call GaussJordan( 2*KU, NRHS, A ,2*KU, CCL(:,1:NRHS), 2*KU, INFO )  ! overwrites CCL       
     if (info /= 0) then        
      CALL XERBLA( 'DGESV/DCBSV ', INFO )
-     RETURN
+!     RETURN
     else              
       Bj(:,jj-1,1:NRHS)=CCL(:,1:NRHS)   ! write Bj-1 with RHS                                         
     endif
@@ -382,5 +343,153 @@
      ii=ii-1      
      end do        
     end do  ! end kk
+
+   deallocate (Bj,Cj,Pj,Sj,UD,UE,UDR,UER)
+   deallocate(A,AA,CC,EE,CCL,IDENT,IPIV)
+   if (p /= 0) then
+    deallocate (Cp,Sp,Bp,EEK)
+   endif
         
-END SUBROUTINE dcbsv
+  END SUBROUTINE dcbsv
+
+
+  subroutine forward( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UD, UE, LL)
+  Use lapackinterface
+  IMPLICIT NONE   
+!  PURPOSE forward iterative loop
+!  Copyright (c) 2021   Anthony M de Beus
+   INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+
+!  .. Scalar Arguments ..
+   Integer, Intent(IN) ::  KU, N, NRHS
+   INTEGER, INTENT(OUT) :: INFO
+!  .. Array Arguments .. 
+
+!  .. Work space ..
+   REAL(wp), Intent(IN) :: Bj(2*KU,N/(2*KU)+1,NRHS)  
+   REAL(wp), Intent(IN) :: Cj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp), Intent(IN) :: Pj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp), Intent(IN) :: Sj(2*KU,2*KU,N/(2*KU)+1)       
+   REAL(wp) :: UD(2*KU,2*KU,0:N/(4*KU)+1)      ! ud is my set of matrices Aj
+   REAL(wp) :: UE(2*KU,0:N/(4*KU)+1,NRHS)      ! ue is my vectors vj  
+   REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
+!   REAL(wp),ALLOCATABLE :: Bj(:,:,:)  
+!   REAL(wp),ALLOCATABLE :: Cj(:,:,:)
+!   REAL(wp),ALLOCATABLE :: Pj(:,:,:)
+!   REAL(wp),ALLOCATABLE :: Sj(:,:,:)       
+!   REAL(wp),ALLOCATABLE :: UD(:,:,:)      ! ud is my set of matrices Aj
+!   REAL(wp),ALLOCATABLE :: UE(:,:,:)      ! ue is my vectors vj  
+!   REAL(wp),ALLOCATABLE :: A(:,:),AA(:,:),CC(:,:),EE(:,:) ! working copies
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU),L,LL
+
+ !$OMP CRITICAL
+
+!   allocate(Bj(2*KU,N/(2*KU)+1,NRHS),Cj(2*KU,2*KU,N/(2*KU)+1))
+!   allocate(Pj(2*KU,2*KU,N/(2*KU)+1),Sj(2*KU,2*KU,N/(2*KU)+1))
+!   allocate(UD(2*KU,2*KU,0:N/(4*KU)+1),UE(2*KU,0:N/(4*KU)+1,NRHS))
+!   allocate(A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS))
+
+   p=mod(N,2*KU)
+   L=(N-p)/4
+
+!! FORWARD   
+   !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  ! (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
+   jj=0  !index of number of arrays
+   do j=L,(N-p)/2,KU      
+    jj=jj+1     
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
+    A=Cj(:,:,jj)+AA
+!    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))        
+!   concatenate Aj and vj solutions onto EE        
+     EE(:,1:2*KU)=-Pj(:,:,jj)
+     do hh=1,NRHS
+      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1) 
+      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
+!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
+     end do
+!    compute next UD,UE using factored A
+    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
+!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                   
+    if (info /= 0) then
+     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
+!     RETURN
+    else
+     UD(:,:,jj)=EE(:,1:2*KU)
+    do hh=1,NRHS     
+     UE(:,jj,hh)=EE(:,2*KU+hh)                
+    end do    
+    endif              
+   end do
+
+!   deallocate (Bj,Cj,Pj,Sj,UD,UE,UDR,UER)
+ !  deallocate(A,AA,CC,EE,CCL,IDENT)
+
+  !$OMP END CRITICAL
+   LL=jj
+
+  end subroutine forward
+
+  subroutine backward(  N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UDR, UER, LL)
+  Use lapackinterface
+  IMPLICIT NONE   
+!  PURPOSE backward iterative loop
+!  Copyright (c) 2021   Anthony M de Beus
+   INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+
+!  .. Scalar Arguments ..
+   Integer, Intent(IN) ::  KU, N, NRHS
+   INTEGER, INTENT(OUT) :: INFO
+!  .. Array Arguments ..
+
+!  .. Work space ..
+   REAL(wp), Intent(IN) :: Bj(2*KU,N/(2*KU)+1,NRHS)  
+   REAL(wp), Intent(IN) :: Cj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp), Intent(IN) :: Pj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp), Intent(IN) :: Sj(2*KU,2*KU,N/(2*KU)+1)       
+   REAL(wp) :: UDR(2*KU,2*KU,N/(4*KU):N/(2*KU)+1)     ! udr is my set of matrices Ajbar
+   REAL(wp) :: UER(2*KU,N/(4*KU):N/(2*KU)+1,NRHS)     ! uer is my vectors vjbar 
+   REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU),L,LL
+
+ !$OMP CRITICAL
+
+   p=mod(N,2*KU)
+   L=(N-p)/4
+
+!! BACKWARD       
+!  ALL BUT THE LAST EQUATION, GENERATE UDR & UER  ! (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
+   jj=(N-p)/(2*KU)+1  !index of number of arrays   
+    do j=(N-p)/2,L+KU,-KU ! j not used; just a counter      
+    jj=jj-1    
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UDR(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
+    A=Cj(:,:,jj)+AA
+!    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UDR(:,:,jj+1))        
+!   concatenate Aj and vj solutions onto EE        
+     EE(:,1:2*KU)=-Sj(:,:,jj)
+     do hh=1,NRHS
+      call DGEMV('N',2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UER(:,jj+1,hh),1,0.0_wp,CC(:,hh),1) 
+      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
+!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Pj(:,:,jj),UER(:,jj+1,hh))
+     end do
+!    compute next UD,UE using factored A
+    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
+!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                    
+    if (info /= 0) then
+     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
+!     RETURN
+    else
+     UDR(:,:,jj)=EE(:,1:2*KU)
+    do hh=1,NRHS     
+     UER(:,jj,hh)=EE(:,2*KU+hh)                
+    end do    
+    endif  
+   end do
+
+ !$OMP END CRITICAL
+   LL=jj
+
+  end subroutine backward
+
+
+
+

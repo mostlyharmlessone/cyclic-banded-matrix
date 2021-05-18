@@ -123,7 +123,7 @@
        endif 
        
 !      ALL BUT THE LAST EQUATION  
-       do j=1,L 
+       do j=1,L-1 
         k=(N-p)/2-j+1
                                                              
         DET2=D(k)*D(1-k+N)+DU(k)*D(1-k+N)*udR(1,1,1+k)-& 
@@ -160,9 +160,9 @@
          CALL XERBLA( 'DCTSV ', INFO )
          RETURN
         ENDIF                                                                                              
-                                                                                                                                                            
        end do       
-       
+
+
 !      LAST EQUATIONS for both is at L
        j=L    
 !      B(j)=Inverse[IDENT-matmul(udR(:,:,j),ud(:,:,j-1))][udR(:,:,j)*ue(j-1)+ueR(j)]

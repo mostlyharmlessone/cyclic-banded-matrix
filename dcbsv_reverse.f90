@@ -274,7 +274,7 @@
     do hh=1,NRHS     
      UE(:,jj,hh)=EE(:,2*KU+hh)                
     end do    
-    endif   
+    endif  
    end do 
           
 !  LAST EQUATION in reverse jj=1  so BjL=Bj(:,1,1:NRHS); CjL=Cj(:,:,1)+matmul(Sj(:,:,1),ud(:,:,0))
