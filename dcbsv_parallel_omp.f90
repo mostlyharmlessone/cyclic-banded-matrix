@@ -373,21 +373,9 @@
    REAL(wp) :: UD(2*KU,2*KU,0:N/(4*KU)+1)      ! ud is my set of matrices Aj
    REAL(wp) :: UE(2*KU,0:N/(4*KU)+1,NRHS)      ! ue is my vectors vj  
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
-!   REAL(wp),ALLOCATABLE :: Bj(:,:,:)  
-!   REAL(wp),ALLOCATABLE :: Cj(:,:,:)
-!   REAL(wp),ALLOCATABLE :: Pj(:,:,:)
-!   REAL(wp),ALLOCATABLE :: Sj(:,:,:)       
-!   REAL(wp),ALLOCATABLE :: UD(:,:,:)      ! ud is my set of matrices Aj
-!   REAL(wp),ALLOCATABLE :: UE(:,:,:)      ! ue is my vectors vj  
-!   REAL(wp),ALLOCATABLE :: A(:,:),AA(:,:),CC(:,:),EE(:,:) ! working copies
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU),L,LL
 
- !$OMP CRITICAL
-
-!   allocate(Bj(2*KU,N/(2*KU)+1,NRHS),Cj(2*KU,2*KU,N/(2*KU)+1))
-!   allocate(Pj(2*KU,2*KU,N/(2*KU)+1),Sj(2*KU,2*KU,N/(2*KU)+1))
-!   allocate(UD(2*KU,2*KU,0:N/(4*KU)+1),UE(2*KU,0:N/(4*KU)+1,NRHS))
-!   allocate(A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS))
+! !$OMP CRITICAL
 
    p=mod(N,2*KU)
    L=(N-p)/4
@@ -421,10 +409,7 @@
     endif              
    end do
 
-!   deallocate (Bj,Cj,Pj,Sj,UD,UE,UDR,UER)
- !  deallocate(A,AA,CC,EE,CCL,IDENT)
-
-  !$OMP END CRITICAL
+ ! !$OMP END CRITICAL
    LL=jj
 
   end subroutine forward
@@ -451,7 +436,7 @@
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU),L,LL
 
- !$OMP CRITICAL
+! !$OMP CRITICAL
 
    p=mod(N,2*KU)
    L=(N-p)/4
@@ -485,7 +470,7 @@
     endif  
    end do
 
- !$OMP END CRITICAL
+! !$OMP END CRITICAL
    LL=jj
 
   end subroutine backward

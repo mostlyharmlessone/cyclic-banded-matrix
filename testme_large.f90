@@ -1,22 +1,28 @@
     program testme_large
+    USE OMP_LIB
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
     INTEGER, PARAMETER :: n=6000 ! size of problem
-    INTEGER, PARAMETER :: KU=27 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KU=270 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0  ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
-    REAL(wp) :: d(n,2),a(n),b(n),c(n),s(n,2),dd(n,2),z(n,2)
-    REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
-    REAL(wp) :: CD(2*KL+KU+1,n)                  ! CD(KL+KU+1+i-j,j) for dgbsv
-    REAL(wp) :: a_short(n-1)                     ! truncated a() for dgtsv
-    INTEGER :: i,j,k,INFO,ipiv(n)
+    REAL(wp), ALLOCATABLE :: d(:,:),a(:),b(:),c(:),s(:,:),dd(:,:),z(:,:),a_short(:) ! a_short truncated a() for dgtsv 
+    REAL(wp), ALLOCATABLE :: AB(:,:),CD(:,:)                ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv 
+                                                            ! CD(KL+KU+1+i-j,j) for dgbsv
+    REAL(wp) :: time_end,time_start,time_end_omp,time_start_omp                     
+    INTEGER :: i,j,k,INFO
+    INTEGER, ALLOCATABLE :: ipiv(:)
 !   Copyright (c) 2021   Anthony M de Beus
-    AB=0
-    CD=0
+
 !   only runs tridiagonal routines dctsv.f90, dgtsv.f90 or thomas.f90 if KU=1
 !   only runs non-periodic lapack routines dgbsv and/or dgtsv if KL > 0 (and in fact KL=KU)   
    
+    allocate(AB(2*KU+1,n),CD(2*KL+KU+1,n),d(n,2),a(n),b(n),c(n),s(n,2),dd(n,2),z(n,2),a_short(n-1),ipiv(n))
+    time_start_o=omp_get_wtime()
+    AB=0
+    CD=0
+
     do i=-KU,KU                                ! generate AB in band-cyclic format
      do j=1,n
       AB(i+KU+1,j)=20.0*(i)**2 + 5.*j/(1.0*n)  ! without the second term, can be ill-conditioned, eg N=9, KU=2 
@@ -147,6 +153,11 @@
       write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
      endif
      ENDIF
- 
+
+     deallocate(AB,CD,d,a,b,c,s,dd,z,a_short,ipiv)
+     time_end_o=omp_get_wtime()
+     write(*,*) 'omp total time: ',time_end-time_start
+
+
    END PROGRAM testme_large
 
