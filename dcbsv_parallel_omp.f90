@@ -1,6 +1,6 @@
    SUBROUTINE DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
    Use lapackinterface 
-   USE OMP_LIB     ! optionally can compile with -fopenmp, but actually slower 
+   USE OMP_LIB      
    IMPLICIT NONE
 !   Copyright (c) 2021   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
@@ -90,7 +90,7 @@
    REAL(wp),ALLOCATABLE :: CCL(:,:),IDENT(:,:)
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
    INTEGER, ALLOCATABLE :: ipiv(:)
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,L,LL
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,L,LL,thread
     
    p=mod(N,2*KU)
    L=(N-p)/4
@@ -104,8 +104,6 @@
    if (p /= 0) then
     allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS))
    endif
-
-!!!$OMP PARALLEL num_threads(2)
       
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
@@ -266,14 +264,15 @@
     endif  ! info =0                        
    endif ! p /=0
 
-!$OMP PARALLEL num_threads(2) 
+!$OMP PARALLEL num_threads(2) PRIVATE(thread)
 !  separate iterative parts into subroutines so each thread can work in parallel
-   call forward( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UD, UE, JJ)
-   call backward( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UDR, UER, LL)
+   thread = omp_get_thread_num()
+   if (thread==0) then
+    call forward_dcbsv( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UD, UE, JJ)
+   else
+    call backward_dcbsv( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UDR, UER, LL)
+   endif
 !$OMP END PARALLEL
-
-!!    !$OMP ATOMIC UPDATE  or BARRIER  instead and for more threads?? or place p allocatable statements
-!!    above OMP directive to include more in OMP area?
 
    jj=LL  ! count forward is count backward + 1
                      
@@ -353,7 +352,7 @@
   END SUBROUTINE dcbsv
 
 
-  subroutine forward( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UD, UE, LL)
+  subroutine forward_dcbsv( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UD, UE, LL)
   Use lapackinterface
   IMPLICIT NONE   
 !  PURPOSE forward iterative loop
@@ -374,8 +373,6 @@
    REAL(wp) :: UE(2*KU,0:N/(4*KU)+1,NRHS)      ! ue is my vectors vj  
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU),L,LL
-
-! !$OMP CRITICAL
 
    p=mod(N,2*KU)
    L=(N-p)/4
@@ -408,13 +405,10 @@
     end do    
     endif              
    end do
-
- ! !$OMP END CRITICAL
    LL=jj
+  end subroutine forward_dcbsv
 
-  end subroutine forward
-
-  subroutine backward(  N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UDR, UER, LL)
+  subroutine backward_dcbsv(  N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UDR, UER, LL)
   Use lapackinterface
   IMPLICIT NONE   
 !  PURPOSE backward iterative loop
@@ -435,8 +429,6 @@
    REAL(wp) :: UER(2*KU,N/(4*KU):N/(2*KU)+1,NRHS)     ! uer is my vectors vjbar 
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU),L,LL
-
-! !$OMP CRITICAL
 
    p=mod(N,2*KU)
    L=(N-p)/4
@@ -469,11 +461,8 @@
     end do    
     endif  
    end do
-
-! !$OMP END CRITICAL
    LL=jj
-
-  end subroutine backward
+  end subroutine backward_dcbsv
 
 
 

@@ -1,5 +1,5 @@
      SUBROUTINE DCTSV( N, NRHS, DL, D, DU, B, LDB, INFO )
-     USE OMP_LIB     ! optionally can compile with -fopenmp, but actually slower
+     USE OMP_LIB     
      IMPLICIT NONE   
 !      PURPOSE solves the cyclic/periodic tridiagonal system, see LAPACK routine DGTSV for comparison
 !      Copyright (c) 2021   Anthony M de Beus
@@ -59,16 +59,16 @@
 !      ..
 !      .. Array Arguments ..
        REAL(wp), INTENT(IN) :: D( N ), DL( N ), DU( N )  ! no output no LU factors
-       REAL(wp), INTENT(INOUT) :: B( LDB, NRHS ) ! on entry RHS, on exit, solution 
+       REAL(wp), INTENT(INOUT) :: B( LDB, NRHS )         ! on entry RHS, on exit, solution 
 
 !      make a copy to avoid data blocking 
        REAL(wp) :: DR( N ), DLR( N ), DUR( N )  ! no output no LU factors
-       REAL(wp) :: BR( N, NRHS ) ! on entry RHS, on exit, solution        
+       REAL(wp) :: BR( N, NRHS )                ! on entry RHS, on exit, solution        
 !      ..
        REAL(wp) :: udR(2,2,N/4:N/2+1),ueR(2,N/4:N/2+1,NRHS),DET2  ! udR is my set of matrices Aj(bar) ueR is my vectors vj(bar)
-       REAL(wp) :: ud(2,2,0:N/4+1),ue(2,0:N/4+1,NRHS),DET     !  ud is my set of matrices Aj ue is my vectors vj
+       REAL(wp) :: ud(2,2,0:N/4+1),ue(2,0:N/4+1,NRHS),DET         !  ud is my set of matrices Aj ue is my vectors vj
 
-       INTEGER :: i,j,k,p,L  
+       INTEGER :: i,j,k,p,L,thread
 
 !      needed for f90+ calling of f77 routines
        INTERFACE
@@ -78,8 +78,6 @@
           INTEGER            INFO
           END SUBROUTINE XERBLA      
        END INTERFACE
-
-!$OMP PARALLEL num_threads(2)
 
 !      INFO handling copied/modified from dgtsv.f *  -- LAPACK routine (version 3.1) --
 !      Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
@@ -135,11 +133,15 @@
         endif                           
        endif        
 
+!$OMP PARALLEL num_threads(2) PRIVATE(thread)
 !      separate iterative parts into subroutines so each thread can work in parallel
-       call forward(N, NRHS, DL, D, DU, B, LDB, INFO, UD, UE)
-       call backward(N, NRHS, DLR, DR, DUR, BR, LDB, INFO, UDR, UER)
-
-!$OMP BARRIER
+       thread = omp_get_thread_num()
+       if (thread==0) then
+        call forward_dctsv(N, NRHS, DL, D, DU, B, LDB, INFO, UD, UE)
+       else
+        call backward_dctsv(N, NRHS, DLR, DR, DUR, BR, LDB, INFO, UDR, UER)
+       endif
+!$OMP END PARALLEL
 
 !      LAST EQUATIONS for both is at L
        j=L    
@@ -208,14 +210,12 @@
         B(i+1,1:NRHS)=(ueR(1,i+1,1:NRHS)+udR(1,1,i+1)*B(i,1:NRHS)+udR(1,2,i+1)*B(N-i+1,1:NRHS)+&
                        ueR(2,i+1,1:NRHS)+udR(2,1,i+1)*B(i,1:NRHS)+udR(2,2,i+1)*B(N-i+1,1:NRHS))/2 
        endif
-
-!$OMP END PARALLEL
       
      end subroutine DCTSV
      
 !     The two iterative loop routines follow     
 
-       subroutine forward(N, NRHS, DL, D, DU, B, LDB, INFO, UD, UE)
+       subroutine forward_dctsv(N, NRHS, DL, D, DU, B, LDB, INFO, UD, UE)
        IMPLICIT NONE   
 !      PURPOSE forward iterative loop
 !      Copyright (c) 2021   Anthony M de Beus
@@ -254,9 +254,9 @@
 !         RETURN
         ENDIF                                                                                              
        end do
-       end subroutine forward
+       end subroutine forward_dctsv
 
-       subroutine backward(N, NRHS, DL, D, DU, B, LDB, INFO, UDR, UER)
+       subroutine backward_dctsv(N, NRHS, DL, D, DU, B, LDB, INFO, UDR, UER)
        IMPLICIT NONE   
 !      PURPOSE backward iterative loop
 !      Copyright (c) 2021   Anthony M de Beus
@@ -296,7 +296,7 @@
 !         RETURN
         ENDIF                                                                                                           
        end do
-       end subroutine backward
+       end subroutine backward_dctsv
               
 
 
