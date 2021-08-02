@@ -1,8 +1,8 @@
 # Cyclic-banded-matrix
 
-Cyclic-banded-matrix is fortran 90+ source code for solving cyclic/periodic square matrices.  The algorithm is detailed in [band_matrix.pdf](https://github.com/mostlyharmlessone/cyclic-banded-matrix/blob/main/band_matrix.pdf)  
+Cyclic-banded-matrix is fortran 90+ source code for solving a system Ax=b with A represented by a cyclic band matrix, aka periodic band matrix, or cyclic/periodic banded matrix. These are all square matrices, and arise from problems with periodic boundary conditions.
 
-I have not found any previous version of this algorithm and it is entirely my derivation. If I have reinvented the wheel, there being nothing new under the sun, it would be interesting to see the previous attribution.
+The algorithm is detailed in [band_matrix.pdf](https://github.com/mostlyharmlessone/cyclic-banded-matrix/blob/main/band_matrix.pdf).  I have not found any previous version of this algorithm and it is entirely my derivation. If I have reinvented the wheel, there being nothing new under the sun, it would be interesting to see the previous attribution.
 
 The error rate increases more rapidly with N than an LU decomposition, but is O(N*KU) in speed.  The matrix needs to be diagonally dominant.
 
