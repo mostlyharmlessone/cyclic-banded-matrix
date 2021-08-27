@@ -12,16 +12,20 @@ function multiply(AB,s) result (z)
  INTEGER :: i,j,k
    z=0
     do j=1,n
-     do i=1,n
-      k=2*KU+2-mod(N+KU+1+i-j,N)
-      if ( k >= 1 .AND. k <= 2*KU+1 ) then
-        C=AB(k,i)
-      else
-        C=0
-      endif 
-       z(j,:)=z(j,:)+C*s(j,:)
-       write(*,*) i,j,k,C,AB(k,i),s(j,1),z(j,1)
-     end do  
+!     do i=1,n
+!      k=2*KU+2-mod(N+KU+1+i-j,N)
+!      if ( k >= 1 .AND. k <= 2*KU+1 ) then
+!        C=AB(k,i)
+!      else
+!        C=0
+!      endif 
+!       z(j,:)=z(j,:)+C*s(j,:)
+!       write(*,*) i,j,k,C,AB(k,i),s(j,1),z(j,1)
+!     end do  
+      do i=1+2*KU+1
+       z(j,:)=z(j,:)+AB(i,:)*s(j,:)
+      end do
+
    end do
  end function
 
