@@ -1,31 +1,23 @@
 module AB_matrix_fct
 
-contains
+contains 
 
-!z=matmul(aij,s)               ! matmul for AB matrix
+!z=matmul(aij,s)  z=multiply(AB,s(:,:))  ! matmul for AB matrix
+
 function multiply(AB,s) result (z)
  implicit none
  INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
- INTEGER, PARAMETER :: n=8           ! size of problem
- INTEGER, PARAMETER :: KU=1 
- REAL(wp) :: C,AB(2*KU+1,n),s(n,2),z(n,2)
+ REAL (wp) :: AB(:,:),s(:,:) 
+ REAL(wp) :: z(size(s,1),size(s,2))
  INTEGER :: i,j,k
+ INTEGER :: n, KU
+   KU=(size(AB,1)-1)/2
+   n=size(AB,2)
    z=0
-    do j=1,n
-!     do i=1,n
-!      k=2*KU+2-mod(N+KU+1+i-j,N)
-!      if ( k >= 1 .AND. k <= 2*KU+1 ) then
-!        C=AB(k,i)
-!      else
-!        C=0
-!      endif 
-!       z(j,:)=z(j,:)+C*s(j,:)
-!       write(*,*) i,j,k,C,AB(k,i),s(j,1),z(j,1)
-!     end do  
-      do i=1+2*KU+1
-       z(j,:)=z(j,:)+AB(i,:)*s(j,:)
+    do j=1,n 
+      do i=1,2*KU+1
+       z(j,:)=z(j,:)+AB(i,j)*s(1+mod(N+i+j-2-KU,N),:)                       
       end do
-
    end do
  end function
 
@@ -37,19 +29,20 @@ end module
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
     INTEGER, PARAMETER :: n=8           ! size of problem
-    INTEGER, PARAMETER :: KU=1           ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=0            ! for testing vs lapack version only
-                                           ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
-    REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2)
+    INTEGER, PARAMETER :: KU=2           ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=2            ! for testing vs lapack version only
+                                          ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
+    REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2),dd(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: CD(2*KL+KU+1,n)                  ! CD(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: a_short(n-1)                     ! truncated a() for dgtsv
     INTEGER :: i,j,k,INFO,ipiv(n)
 !   Copyright (c) 2021   Anthony M de Beus
     AB=0
+    CD=0
 
 !   only runs dctsv.f90 if KU=1
-!   only runs gauss-jordan if N < 500 (gets too slow)
+!   only runs gauss-jordan if N < 1000 (gets too slow)
 !   only runs dgbsv and/or dgtsv if KL > 0 (and in fact KL=KU); non-periodic lapack routines, KU=KL=1 for dgtsv
    
 !   This is an example of a band matrix for testing
@@ -87,6 +80,7 @@ end module
                       
     d=matmul(aij,s )               ! RHS vectors
     cij=aij                        ! store a copy
+    dd=d
 
     call CPU_TIME(time_start)
     call DGESV(N, 2, AIJ, N, IPIV, D, N, INFO ) ! overwrites  aij & d
@@ -99,7 +93,7 @@ end module
  
     if (N < 1000) then   ! don't do this unless you want to wait a long time
     aij=cij
-    d=matmul(aij,s)                           
+    d=dd                          
     call CPU_TIME(time_start)
     call GaussJordan( N, 2, AIJ, N, D, N, INFO )
     call CPU_TIME(time_end)
@@ -119,19 +113,26 @@ end module
     endif
 
     aij=cij
-    d=matmul(aij,s)
+    d=dd
 
-    do i=1,n                                           ! store aij in band-cyclic format
-     do j=1,n
-      if (aij(i,j) /= 0) then
-      k=2*KU+2-mod(N+KU+1+i-j,N)
-      AB(k,i)=aij(i,j)
-      endif 
+!     do i=1,n                                           ! store aij in band-cyclic format
+!     do j=1,n
+!      if (aij(i,j) /= 0) then
+!      k=2*KU+2-mod(N+KU+1+i-j,N)
+!      AB(k,i)=aij(i,j)
+!      endif 
+!     end do 
+!    end do
+    
+    do i=1,1+2*KU                                          ! store aij in band-cyclic format
+     do j=1,n        
+      k=1+mod(N+i+j-2-KU,N)
+      AB(i,j)=aij(j,k) 
      end do 
-    end do
+    end do   
  
     if (KL > 0) then
-    do i=1,n                                           ! store aij in lapack band format if we're testing non-cyclic
+    do i=1,n                             ! store aij in lapack band format if we're testing non-cyclic
      do j=1,n
       if (aij(i,j) /= 0) then
       CD(KL+KU+1+i-j,j)=aij(i,j)
@@ -140,28 +141,16 @@ end module
     end do
     endif
     
-        z=multiply(AB,s(:,1))
-        
-        write(*,*) AB
-        write(*,*) ' '
-        write(*,*) s(:,1)
-         write(*,*) ' '       
-        write (*,*) z(:,1)
-        write(*,*) ' '  
-        write (*,*) matmul(Transpose(aij),s(:,1))
-        write(*,*) ' '              
-        write (*,*) d(:,1)
-        write(*,*) ' '        
-        write (*,*) d(:,1)-z(:,1)
-        write(*,*) ' '        
-    write(*,*) 'solution error',dot_product((z(:,1)-d(:,1)),(z(:,1)-d(:,1))) 
-    write(*,*) 'solution error',dot_product((z(:,2)-d(:,2)),(z(:,2)-d(:,2)))
+    write(*,*) 'testing for CD without generating nxn, eventual conversion CD/AB  functions'
+    write(*,*) ' '    
+    write(*,*) Transpose(aij)
+    write(*,*) ' '
+    write(*,*) Transpose(AB)
+    write(*,*) ' '    
+    write(*,*) Transpose(CD)
+    write(*,*) ' '    
     
-stop
-    
-    
-    
-
+             
     IF (KU == 1) then                                  ! store tridiagonal matrices in vector format
     a=AB(1,:)
     b=AB(2,:)
@@ -182,7 +171,7 @@ stop
 
 !    LAPACK routine for non-cyclic system    
      if (KL > 0) then   ! or KL == 1
-      d=matmul(aij,s)       
+      d=dd      
       call CPU_TIME(time_start)
       call DGTSV( n, 2, a_short, b, c, d, n, INFO )     ! overwrites b and d into solution
       call CPU_TIME(time_end)
@@ -196,7 +185,7 @@ stop
       a=AB(1,:)
       b=AB(2,:)
       c=AB(3,:)
-      d=matmul(aij,s)        
+      d=dd       
       call CPU_TIME(time_start)
       call thomas(a,b,c,d,z,n,2)                        ! overwrites b and d, output is z           
       call CPU_TIME(time_end)
@@ -210,7 +199,7 @@ stop
               
     ENDIF
 
-    d=matmul(aij,s)
+    d=dd
     call CPU_TIME(time_start)
     call DCBSV( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
     call CPU_TIME(time_end)
@@ -219,10 +208,20 @@ stop
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
+    d=dd   
+    z=multiply(AB,s(:,:))
+    write(*,*) 'RHS error',dot_product(z(:,1)-d(:,1),z(:,1)-d(:,1)) 
+    write(*,*) 'RHS error',dot_product(z(:,2)-d(:,2),z(:,2)-d(:,2))
+    write(*,*) 'iterative step'
+!    call CPU_TIME(time_start)
+!    call DCBSV( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+!    call CPU_TIME(time_end)    
+!    write(*,*) 'time: ',time_end-time_start   
+
 
 !    LAPACK routine for non-cyclic system
      if (KL > 0) then   
-      d=matmul(aij,s)       
+      d=dd      
       call CPU_TIME(time_start)          
       call dgbsv( N, KL, KU, 2, CD, 2*KL+KU+1, IPIV, d, N, INFO ) ! overwrites d into solution
       call CPU_TIME(time_end)
