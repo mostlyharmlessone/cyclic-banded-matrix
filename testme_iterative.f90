@@ -28,9 +28,9 @@ end module
     use AB_matrix_fct, only : multiply   
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=8           ! size of problem
-    INTEGER, PARAMETER :: KU=2           ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=2            ! for testing vs lapack version only
+    INTEGER, PARAMETER :: n=8          ! size of problem
+    INTEGER, PARAMETER :: KU=3           ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=3           ! for testing vs lapack version only
                                           ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2),dd(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
@@ -38,8 +38,6 @@ end module
     REAL(wp) :: a_short(n-1)                     ! truncated a() for dgtsv
     INTEGER :: i,j,k,INFO,ipiv(n)
 !   Copyright (c) 2021   Anthony M de Beus
-    AB=0
-    CD=0
 
 !   only runs dctsv.f90 if KU=1
 !   only runs gauss-jordan if N < 1000 (gets too slow)
@@ -114,6 +112,7 @@ end module
 
     aij=cij
     d=dd
+    AB=0
 
 !     do i=1,n                                           ! store aij in band-cyclic format
 !     do j=1,n
@@ -129,17 +128,28 @@ end module
       k=1+mod(N+i+j-2-KU,N)
       AB(i,j)=aij(j,k) 
      end do 
-    end do   
- 
-    if (KL > 0) then
-    do i=1,n                             ! store aij in lapack band format if we're testing non-cyclic
-     do j=1,n
-      if (aij(i,j) /= 0) then
-      CD(KL+KU+1+i-j,j)=aij(i,j)
-      endif 
-     end do
-    end do
-    endif
+    end do  
+     
+    CD=0
+    
+!    if (KL > 0) then
+!      do i=1,n                             ! store aij in lapack band format if we're testing non-cyclic
+!      do j=1,n
+!       if (aij(i,j) /= 0) then
+!       CD(KL+KU+1+i-j,j)=aij(i,j)
+!       endif 
+!      end do
+!     end do
+!    endif
+           
+    if (KL > 0 .AND. KL==KU) then    
+     do i=1,1+KL+KU                         ! store aij in lapack band format if we're testing non-cyclic
+      do j=1,n        
+       k=1+mod(N+i+j-2-KU,N)
+       CD(i+KL,j)=aij(k,j) 
+      end do 
+     end do 
+    endif 
     
     write(*,*) 'testing for CD without generating nxn, eventual conversion CD/AB  functions'
     write(*,*) ' '    
