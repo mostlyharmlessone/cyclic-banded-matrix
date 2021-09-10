@@ -20,17 +20,35 @@ function multiply(AB,s) result (z)
       end do
    end do
  end function
+ 
+ function convert(AB) result (CD)
+ implicit none
+ INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+ REAL (wp) :: AB(:,:)
+ REAL(wp) :: CD((size(AB,1)+1)/2,size(AB,2))
+ INTEGER :: i,j,m
+ INTEGER :: n, KU
+   m=size(AB,1)
+   KU=(m-1)/2
+   n=size(AB,2)
+   CD=0
+    do j=1,n 
+      do i=1,2*KU+1  
+       CD(i+KU,j)=AB(m-i+1,1+mod(N+i+j+KU-m-1,n))              
+      end do
+   end do
+ end function
 
 end module
 
 
     program testme
-    use AB_matrix_fct, only : multiply   
+    use AB_matrix_fct, only : multiply, convert  
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=8          ! size of problem
-    INTEGER, PARAMETER :: KU=3           ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=3           ! for testing vs lapack version only
+    INTEGER, PARAMETER :: n=1701          ! size of problem
+    INTEGER, PARAMETER :: KU=23          ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=23          ! for testing vs lapack version only
                                           ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2),dd(n,2)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
@@ -48,7 +66,7 @@ end module
     do i=1,n
      do j=1,n
       if (ABS(i - j) <= KU ) then  ! regular band
-        aij(i,j)=500+3*i-2*j
+        aij(i,j)=500+3.1*i-2*j
         if (i > j) then
         aij(i,j)=aij(i,j)+1        ! asymmetry
        endif         
@@ -150,17 +168,7 @@ end module
       end do 
      end do 
     endif 
-    
-    write(*,*) 'testing for CD without generating nxn, eventual conversion CD/AB  functions'
-    write(*,*) ' '    
-    write(*,*) Transpose(aij)
-    write(*,*) ' '
-    write(*,*) Transpose(AB)
-    write(*,*) ' '    
-    write(*,*) Transpose(CD)
-    write(*,*) ' '    
-    
-             
+              
     IF (KU == 1) then                                  ! store tridiagonal matrices in vector format
     a=AB(1,:)
     b=AB(2,:)
@@ -168,7 +176,6 @@ end module
     do i=1,n-1
      a_short(i)=a(i+1)                                 ! truncated "a" for dgtsv, don't have to truncate "c"
     end do
-
 
     call CPU_TIME(time_start)
     call DCTSV( n, 2, a, b, c, d, n, INFO )            ! overwrites d into solution
@@ -209,26 +216,6 @@ end module
               
     ENDIF
 
-    d=dd
-    call CPU_TIME(time_start)
-    call DCBSV( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
-    call CPU_TIME(time_end)
-    write(*,*) 'Using dcbsv.f90, O(n)'    
-    write(*,*) 'time: ',time_end-time_start
-    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
-    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
-    write(*,*) ' '
-    d=dd   
-    z=multiply(AB,s(:,:))
-    write(*,*) 'RHS error',dot_product(z(:,1)-d(:,1),z(:,1)-d(:,1)) 
-    write(*,*) 'RHS error',dot_product(z(:,2)-d(:,2),z(:,2)-d(:,2))
-    write(*,*) 'iterative step'
-!    call CPU_TIME(time_start)
-!    call DCBSV( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
-!    call CPU_TIME(time_end)    
-!    write(*,*) 'time: ',time_end-time_start   
-
-
 !    LAPACK routine for non-cyclic system
      if (KL > 0) then   
       d=dd      
@@ -240,6 +227,33 @@ end module
       write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
       write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
      endif
+
+!   put this last to use dd     
+    d=dd
+    call CPU_TIME(time_start)
+    call DCBSV( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+    call CPU_TIME(time_end)
+    write(*,*) 'Using dcbsv.f90, O(n)'    
+    write(*,*) 'time: ',time_end-time_start
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
+    write(*,*) ' ' 
+    z=multiply(AB,s(:,:))
+    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1)) 
+    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))
+    
+    d=z-dd
+    write(*,*) 'iterative step'
+    call CPU_TIME(time_start)
+    call DCBSV( N, KU, 2, AB, 2*KU+1, dd, N, INFO )      ! overwrites dd
+    call CPU_TIME(time_end)    
+    write(*,*) 'time: ',time_end-time_start 
+    z=d+dd
+    write(*,*) dd
+    write(*,*) 'solution error',dot_product((s(:,1)-z(:,1)),(s(:,1)-z(:,1))) 
+    write(*,*) 'solution error',dot_product((s(:,2)-z(:,2)),(s(:,2)-z(:,2)))    
+     
+     
  
 
    END PROGRAM testme
