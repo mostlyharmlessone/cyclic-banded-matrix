@@ -20,11 +20,26 @@ The algorithm can be run forwards or backwards, with dcbsv.f90, dcbsv_reverse.f9
 
 A fortran 90 module LapackInterface.f90 is included for compatibility with FORTRAN 77. Note that the module only needs to be compiled once and is only needed for LAPACK/BLAS compatibility.
 
-Band matrices are defined per LAPACK convention https://www.netlib.org/lapack/lug/node124.html for non-periodic matrices where the columns of the full matrix are the columns of the banded form while the rows of the banded form are the diagonals of the full matrix.  For periodic banded matrices, the definition of the banded form is similar with the rows of the full matrix as the columns of the banded form while the rows of the banded form are the diagonals of the full matrix.  See [band_matrix.pdf](https://github.com/mostlyharmlessone/cyclic-banded-matrix/blob/main/band_matrix.pdf)
+Band matrices are defined per LAPACK convention https://www.netlib.org/lapack/lug/node124.html for non-periodic matrices where the **columns** of the full matrix are the columns of the banded form while the rows of the banded form are the diagonals of the full matrix.  For periodic banded matrices, the definition of the banded form is similar with the **rows** of the full matrix as the columns of the banded form while the rows of the banded form are the diagonals of the full matrix.  See [band_matrix.pdf](https://github.com/mostlyharmlessone/cyclic-banded-matrix/blob/main/band_matrix.pdf)
 
+  The band diagonal storage scheme is illustrated by the following example, when
+  N = 9, KU = 2
+
+     AB(2*KU+2-mod(N+KU+1+i-j,N),i)                  A(i,j)=aij  
+     a18  a29  a31  a42  a53 a64 a75 a86 a97         a11 a12 a13  0   0   0   0 a18  a19
+     a19  a21  a32  a43  a54 a65 a76 a87 a98         a21 a22 a23 a24  0   0   0  0   a29
+     a11  a22  a33  a44  a55 a66 a77 a88 a99         a31 a32 a33 a34 a35  0   0  0    0
+     a12  a23  a34  a45  a56 a67 a78 a89 a91         0   a42 a43 a44 a45 a46  0  0    0
+     a13  a24  a35  a46  a57 a68 a79 a81 a92         0   0   a53 a54 a55 a56 a57 0    0
+                                                     0   0   0   a64 a65 a66 a67 a68  0
+                                                     0   0   0   0   a75 a76 a77 a78 a79
+                                                     a81 0   0   0    0  a86 a87 a88 a89
+                                                     a91 a92 0   0    0   0  a97 a98 a99
+													 
+													 
 A fortran 90 module AB_matrix_fct.f90 to work with the defined periodic banded matrix and their non-cyclic LAPACK counterpart is included.  Note that the module only needs to be compiled once.
  
-Two simple test programs are included, testme.f90 using full matrix routines as well as the LAPACK banded noncyclic routines dgtsv and dgbsv for comparison and testme_omp.f90 for larger N with a simple tridiagonal solver thomas.f90 for comparison purposes. 
+Two simple test programs are included, testme.f90 using full matrix routines as well as the LAPACK banded noncyclic routines dgtsv and dgbsv for comparison and testme_omp.f90 for larger N with a simple tridiagonal solver thomas.f90 for comparison purposes. CityPlots https://math.nist.gov/MatrixMarket/ of the matrices can be generated with the included Mathematica(R) notebook CityPlot.nb
 
 Using gfortran
 ```
