@@ -86,7 +86,7 @@
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
    REAL(wp) :: CCL(2*KU,NRHS)
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU)
+   INTEGER ::  i,j,k,kk,hh,LL,p,ii,jj,ipiv(2*KU)
     
    p=mod(N,2*KU)
       
@@ -110,13 +110,7 @@
 !     end info handling
 !
 !  Initialize
-   ipiv=0
-   Bj=0
-   Cj=0
-   Pj=0
-   CCL=0
-   EE=0   
-   Sj=0   
+   ipiv=0;   Bj=0;   Cj=0;   Pj=0;   CCL=0;   EE=0;   Sj=0   
    jj=0  !index of number of arrays
 
 !   Setup the arrays             
@@ -249,33 +243,7 @@
     deallocate (Cp,Sp,Bp,EEK)                        
    endif ! p /=0
        
-!  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
-   jj=(N-p)/(2*KU)+1  !index of number of arrays   
-    do j=(N-p)/2,2*KU,-KU ! j not used; just a counter      
-    jj=jj-1    
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UD(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
-    A=Cj(:,:,jj)+AA
-!    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UD(:,:,jj+1))        
-!   concatenate Aj and vj solutions onto EE        
-     EE(:,1:2*KU)=-Sj(:,:,jj)
-     do hh=1,NRHS
-      call DGEMV('N',2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UE(:,jj+1,hh),1,0.0_wp,CC(:,hh),1) 
-      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
-!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Pj(:,:,jj),UE(:,jj+1,hh))
-     end do
-!    compute next UD,UE using factored A
-    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
-!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                    
-    if (info /= 0) then
-     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
-     RETURN
-    else
-     UD(:,:,jj)=EE(:,1:2*KU)
-    do hh=1,NRHS     
-     UE(:,jj,hh)=EE(:,2*KU+hh)                
-    end do    
-    endif  
-   end do 
+    call backward_dcbsv(KU, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, 0,size(UD,3)-1,UD, UE, LL)
           
 !  LAST EQUATION in reverse jj=1  so BjL=Bj(:,1,1:NRHS); CjL=Cj(:,:,1)+matmul(Sj(:,:,1),ud(:,:,0))
     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Pj(:,:,1),2*KU,UE(:,2,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)       

@@ -89,7 +89,7 @@
    REAL(wp) :: IDENTS(2*KU+mod(N,2*KU),2*KU),BL(2*KU,2*KU+mod(N,2*KU))
    REAL(wp) :: AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU),NRHS)
    Real(wp) :: D(2*KU+mod(N,2*KU),NRHS)   
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,LL,ipiv(2*KU+mod(N,2*KU))
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU+mod(N,2*KU))
     
    p=mod(N,2*KU)
    
@@ -113,8 +113,16 @@
 !     end info handling
 !
 !  Initialize
-   ipiv=0;   Bj=0;   Cj=0;   Pj=0;   CjL=0;   BjL=0;   AAL=0;   CCL=0;   EE=0;   Sj=0
-    
+   ipiv=0
+   Bj=0
+   Cj=0
+   Pj=0
+   CjL=0
+   BjL=0
+   AAL=0
+   CCL=0
+   EE=0   
+   Sj=0   
    jj=0  !index of number of arrays       
     do j=1,(N-p)/2+1-KU,KU   
        jj=jj+1
@@ -178,10 +186,35 @@
       endif
      end do 
     end do
-
-!   main loop function
-    call forward_dcbsv(1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1,UD, UE, LL)  
-       
+         
+!  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
+   jj=0  !index of number of arrays
+   do j=1,(N-p)/2-KU,KU      
+    jj=jj+1     
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
+    A=Cj(:,:,jj)+AA
+!    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))        
+!   concatenate Aj and vj solutions onto EE        
+     EE(:,1:2*KU)=-Pj(:,:,jj)
+     do hh=1,NRHS
+      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1) 
+      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
+!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
+     end do
+!    compute next UD,UE using factored A
+    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
+!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                   
+    if (info /= 0) then
+     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
+     RETURN
+    else
+     UD(:,:,jj)=EE(:,1:2*KU)
+    do hh=1,NRHS     
+     UE(:,jj,hh)=EE(:,2*KU+hh)                
+    end do    
+    endif              
+   end do 
+   
 !  LAST EQUATION  (last j from above+KU)    
     jj=(N-p)/(2*KU)       
 !   j=(N-p)/2+1-KU      
@@ -241,14 +274,3 @@
   end do
   
 END SUBROUTINE dcbsv
-
-
-
-
-         
- 
-
-
-
-
-

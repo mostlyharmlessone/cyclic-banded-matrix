@@ -90,7 +90,7 @@
    REAL(wp),ALLOCATABLE :: CCL(:,:),IDENT(:,:)
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
    INTEGER, ALLOCATABLE :: ipiv(:)
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,L,LL,thread,allocstat
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,L,LL,thread
     
    p=mod(N,2*KU)
    L=(N-p)/4
@@ -100,17 +100,9 @@
    allocate(UD(2*KU,2*KU,0:N/(4*KU)+1),UE(2*KU,0:N/(4*KU)+1,NRHS))
    allocate(UDR(2*KU,2*KU,N/(4*KU):N/(2*KU)+1),UER(2*KU,N/(4*KU):N/(2*KU)+1,NRHS))
    allocate(A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS))
-   allocate(CCL(2*KU,NRHS),IDENT(2*KU,2*KU),IPIV(2*KU),STAT=allocstat)
-   if (allocstat /=0) then
-    write(*,*) 'Memory allocation failed'
-    stop
-   endif 
+   allocate(CCL(2*KU,NRHS),IDENT(2*KU,2*KU),IPIV(2*KU))
    if (p /= 0) then
-    allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS),STAT=allocstat)
-    if (allocstat /=0) then
-     write(*,*) 'Memory allocation failed'
-     stop
-    endif    
+    allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS))
    endif
       
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
@@ -270,9 +262,9 @@
 !  separate iterative parts into subroutines so each thread can work in parallel
    thread = omp_get_thread_num()
    if (thread==0) then
-    call forward_dcbsv(L, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1,UD, UE, LL)     
+    call forward_dcbsv( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UD, UE, JJ)
    else
-    call backward_dcbsv(L, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, N/(4*KU),N/(2*KU)+1,UDR, UER, LL)
+    call backward_dcbsv( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UDR, UER, LL)
    endif
 !$OMP END PARALLEL
 
@@ -353,6 +345,117 @@
   END SUBROUTINE dcbsv
 
 
+  subroutine forward_dcbsv( N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UD, UE, LL)
+  Use lapackinterface
+  IMPLICIT NONE   
+!  PURPOSE forward iterative loop
+!  Copyright (c) 2021   Anthony M de Beus
+   INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+
+!  .. Scalar Arguments ..
+   Integer, Intent(IN) ::  KU, N, NRHS
+   INTEGER, INTENT(OUT) :: INFO
+!  .. Array Arguments .. 
+
+!  .. Work space ..
+   REAL(wp), Intent(IN) :: Bj(2*KU,N/(2*KU)+1,NRHS)  
+   REAL(wp), Intent(IN) :: Cj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp), Intent(IN) :: Pj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp), Intent(IN) :: Sj(2*KU,2*KU,N/(2*KU)+1)       
+   REAL(wp) :: UD(2*KU,2*KU,0:N/(4*KU)+1)      ! ud is my set of matrices Aj
+   REAL(wp) :: UE(2*KU,0:N/(4*KU)+1,NRHS)      ! ue is my vectors vj  
+   REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU),L,LL
+
+   p=mod(N,2*KU)
+   L=(N-p)/4
+
+!! FORWARD   
+   !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  ! (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
+   jj=0  !index of number of arrays
+   do j=L,(N-p)/2,KU      
+    jj=jj+1     
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
+    A=Cj(:,:,jj)+AA
+!    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))        
+!   concatenate Aj and vj solutions onto EE        
+     EE(:,1:2*KU)=-Pj(:,:,jj)
+     do hh=1,NRHS
+      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1) 
+      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
+!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
+     end do
+!    compute next UD,UE using factored A
+    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
+!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                   
+    if (info /= 0) then
+     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
+!     RETURN
+    else
+     UD(:,:,jj)=EE(:,1:2*KU)
+    do hh=1,NRHS     
+     UE(:,jj,hh)=EE(:,2*KU+hh)                
+    end do    
+    endif              
+   end do
+   LL=jj
+  end subroutine forward_dcbsv
+
+  subroutine backward_dcbsv(  N, KU, Bj,Cj,Pj,Sj, NRHS, INFO, UDR, UER, LL)
+  Use lapackinterface
+  IMPLICIT NONE   
+!  PURPOSE backward iterative loop
+!  Copyright (c) 2021   Anthony M de Beus
+   INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+
+!  .. Scalar Arguments ..
+   Integer, Intent(IN) ::  KU, N, NRHS
+   INTEGER, INTENT(OUT) :: INFO
+!  .. Array Arguments ..
+
+!  .. Work space ..
+   REAL(wp), Intent(IN) :: Bj(2*KU,N/(2*KU)+1,NRHS)  
+   REAL(wp), Intent(IN) :: Cj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp), Intent(IN) :: Pj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp), Intent(IN) :: Sj(2*KU,2*KU,N/(2*KU)+1)       
+   REAL(wp) :: UDR(2*KU,2*KU,N/(4*KU):N/(2*KU)+1)     ! udr is my set of matrices Ajbar
+   REAL(wp) :: UER(2*KU,N/(4*KU):N/(2*KU)+1,NRHS)     ! uer is my vectors vjbar 
+   REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU),L,LL
+
+   p=mod(N,2*KU)
+   L=(N-p)/4
+
+!! BACKWARD       
+!  ALL BUT THE LAST EQUATION, GENERATE UDR & UER  ! (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
+   jj=(N-p)/(2*KU)+1  !index of number of arrays   
+    do j=(N-p)/2,L+KU,-KU ! j not used; just a counter      
+    jj=jj-1    
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UDR(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
+    A=Cj(:,:,jj)+AA
+!    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UDR(:,:,jj+1))        
+!   concatenate Aj and vj solutions onto EE        
+     EE(:,1:2*KU)=-Sj(:,:,jj)
+     do hh=1,NRHS
+      call DGEMV('N',2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UER(:,jj+1,hh),1,0.0_wp,CC(:,hh),1) 
+      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
+!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Pj(:,:,jj),UER(:,jj+1,hh))
+     end do
+!    compute next UD,UE using factored A
+    call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
+!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                    
+    if (info /= 0) then
+     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
+!     RETURN
+    else
+     UDR(:,:,jj)=EE(:,1:2*KU)
+    do hh=1,NRHS     
+     UER(:,jj,hh)=EE(:,2*KU+hh)                
+    end do    
+    endif  
+   end do
+   LL=jj
+  end subroutine backward_dcbsv
 
 
 
