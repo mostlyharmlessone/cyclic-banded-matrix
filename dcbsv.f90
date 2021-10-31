@@ -6,7 +6,7 @@
 !   using an O(N/KU+KU)xKUxKU algorithm 
 
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision 
-
+       
 !  Arguments copied and modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !      Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !      November 2006
@@ -178,13 +178,7 @@
 
 !  IDENTITY MATRIX WITH p extra rows of zeroes in the middle
    IDENTS=0
-    do i=1,KU
-     do k=1,KU
-      if ( i == k ) then
-       IDENTS(i,k)=1
-      endif
-     end do
-    end do
+   forall(j = 1:KU) IDENTS(j,j) = 1    
     do i=1+KU+p,2*KU+p
      do k=KU,2*KU
       if ( i == k+p ) then

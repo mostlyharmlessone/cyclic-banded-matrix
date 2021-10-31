@@ -175,7 +175,7 @@
 !  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
     UE(:,(N-p)/(2*KU)+1,:)=0
     UD(:,:,(N-p)/(2*KU)+1)=0
-     if (p < KU) then
+    if (p < KU) then
 !    needs A0 in center 2(KU-p) in size
 !    result is 2KUx2KU
 !     sqsize=2*KU-2*p

@@ -44,7 +44,6 @@ Two simple test programs are included, testme.f90 using full matrix routines as 
 Using gfortran
 ```
 gfortran -c LapackInterface.f90 
-gfortran -c AB_matrix_fct.f90
 gfortran testme.f90 dctsv.f90 dcbsv.f90 gauss-jordan.f90 -llapack -lblas
 
 or (after commenting out dgesv in testme.f90)
@@ -53,9 +52,7 @@ gfortran testme.f90 dctsv.f90 dcbsv.f90 gauss-jordan.f90
 
 parallel versions with OpenMP
 
-gfortran -c LapackInterface.f90 
-gfortran -c AB_matrix_fct.f90
-gfortran -fopenmp -O3 testme_omp.f90 dcbsv_parallel_omp.f90 dctsv_parallel_omp.f90 thomas.f90 -llapack -lblas
+gfortran -fopenmp -O3 testme_omp.f90 dcbsv_parallel_omp.f90 dctsv_parallel_omp.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 -llapack -lblas
 
 ./a.out
 

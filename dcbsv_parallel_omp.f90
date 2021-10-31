@@ -159,14 +159,8 @@
    end do
 
 !  IDENTITY MATRIX 
-   IDENT=0
-    do i=1,2*KU
-     do k=1,2*KU
-      if ( i == k ) then
-       IDENT(i,k)=1
-      endif
-     end do
-    end do 
+   IDENT=0 
+   forall(j = 1:2*KU) IDENT(j,j) = 1
 
 !  FIRST ARRAY forward uses p=0 formula
 !  already done above UE(:,0,:)=0;  UD(:,:,0)=0
