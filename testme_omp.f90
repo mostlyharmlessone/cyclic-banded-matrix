@@ -5,15 +5,15 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=90000 ! size of problem
-    INTEGER, PARAMETER :: KU=358 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: n=85000 ! size of problem
+    INTEGER, PARAMETER :: KU=158 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0   ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp), ALLOCATABLE :: d(:,:),a(:),b(:),c(:),s(:,:),dd(:,:),z(:,:),zz(:,:),a_short(:) ! a_short truncated a() for dgtsv    
     REAL(wp), ALLOCATABLE :: AB(:,:),CD(:,:)                ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv 
                                                             ! CD(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: time_end,time_start                     
-    INTEGER :: i,j,k,INFO
+    INTEGER :: i,j,k,p,INFO
     INTEGER, ALLOCATABLE :: ipiv(:)
 !   Copyright (c) 2021   Anthony M de Beus
 
@@ -24,6 +24,8 @@
 
     AB=0
     CD=0
+    p=mod(N,2*KU)
+    write(*,*) 'p,KU: ',p,KU
 
     do i=-KU,KU                                ! generate AB in band-cyclic format
      do j=1,n

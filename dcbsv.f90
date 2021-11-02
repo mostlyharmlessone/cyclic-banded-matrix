@@ -77,22 +77,20 @@
    Real(wp), Intent(INOUT) ::  B( ldb, * )
 
 !  .. Work space ..
-   REAL(wp) :: Bj(2*KU,N/(2*KU)+2*KU,NRHS)  
-   REAL(wp) :: Cj(2*KU,2*KU,N/(2*KU)+2*KU)
-   REAL(wp) :: Pj(2*KU,2*KU,N/(2*KU)+2*KU)
-   REAL(wp) :: Sj(2*KU,2*KU,N/(2*KU)+2*KU)   
-   REAL(wp) :: BjL(2*KU+mod(N,2*KU),NRHS)   
-   REAL(wp) :: CjL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)) 
-   REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+2*KU) ! ud is my set of matrices Aj
-   REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU,NRHS)      ! ue is my vectors vj 
-   REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
-   REAL(wp) :: IDENTS(2*KU+mod(N,2*KU),2*KU),BL(2*KU,2*KU+mod(N,2*KU))
-   REAL(wp) :: AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU),NRHS)
-   Real(wp) :: D(2*KU+mod(N,2*KU),NRHS)   
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,LL,ipiv(2*KU+mod(N,2*KU))
-    
-   p=mod(N,2*KU)
-   
+   REAL(wp),ALLOCATABLE :: Bj(:,:,:)  
+   REAL(wp),ALLOCATABLE :: Cj(:,:,:)
+   REAL(wp),ALLOCATABLE :: Pj(:,:,:)
+   REAL(wp),ALLOCATABLE :: Sj(:,:,:)       
+   REAL(wp),ALLOCATABLE :: UD(:,:,:)      ! ud is my set of matrices Aj
+   REAL(wp),ALLOCATABLE :: UE(:,:,:)      ! ue is my vectors vj         
+   REAL(wp),ALLOCATABLE :: AA(:,:),CC(:,:),EE(:,:) ! working copies          
+   REAL(wp),ALLOCATABLE :: BjL(:,:),CjL(:,:)      
+   REAL(wp),ALLOCATABLE :: IDENTS(:,:),BL(:,:)
+   REAL(wp),ALLOCATABLE :: AAL(:,:),CCL(:,:),SjL(:,:)
+   Real(wp),ALLOCATABLE :: D(:,:)   
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,LL,allocstat
+   INTEGER, ALLOCATABLE :: ipiv(:)
+          
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !     November 2006
@@ -111,9 +109,19 @@
          RETURN
       END IF
 !     end info handling
+
+   p=mod(N,2*KU)
+   
+   allocate(Bj(2*KU,N/(2*KU)+2*KU,NRHS),Cj(2*KU,2*KU,N/(2*KU)+2*KU))
+   allocate(Pj(2*KU,2*KU,N/(2*KU)+2*KU),Sj(2*KU,2*KU,N/(2*KU)+2*KU)) 
+   allocate(UD(2*KU,2*KU,0:N/(2*KU)+2*KU),UE(2*KU,0:N/(2*KU)+2*KU,NRHS),STAT=allocstat)     
+    if (allocstat /=0) then
+     write(*,*) 'Memory allocation failed'
+     stop
+    endif    
 !
 !  Initialize
-   ipiv=0;   Bj=0;   Cj=0;   Pj=0;   CjL=0;   BjL=0;   AAL=0;   CCL=0;   EE=0;   Sj=0
+   Bj=0;   Cj=0;   Pj=0;  Sj=0
     
    jj=0  !index of number of arrays       
     do j=1,(N-p)/2+1-KU,KU   
@@ -142,18 +150,7 @@
            endif                     
           end do 
          end do                              
-   end do
-
-!  LAST ARRAYS needs extra p rows in middle of Cj & Pj now 2KU+p square
-!       CjL=Cj(:,:,jj)+matmul(Pj(:,:,jj),ud(:,:,0)) when p=0 & jj=N/2
-         j=(N-p)/2+1-KU ! is found at middle 
-         do i=1,2*KU+p
-          do k=1,2*KU+p
-          if (ABS(k-i) <=  KU) then
-           CjL(i,k)=AB(KU+k-i+1,j+i-1)
-          endif
-          end do 
-         end do              
+   end do            
          
 !  FIRST EQUATION 
 !  initial values
@@ -168,6 +165,40 @@
      end do 
    end do
 
+!   main loop function
+    call forward_dcbsv(1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1,UD, UE, LL) 
+     
+    deallocate(Cj,Pj)
+    allocate(SjL(2*KU,2*KU))  
+!   LAST EQUATION  (last j from above+KU)    
+    jj=(N-p)/(2*KU)       
+!   j=(N-p)/2+1-KU    
+    SjL=Sj(:,:,jj)
+    deallocate(Sj) 
+    allocate(ipiv(2*KU+mod(N,2*KU)))        
+    allocate(BjL(2*KU+mod(N,2*KU),NRHS),CjL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)))
+    allocate(D(2*KU+mod(N,2*KU),NRHS))
+    allocate(AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU),NRHS))
+    allocate(AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS))    
+    allocate(IDENTS(2*KU+mod(N,2*KU),2*KU),BL(2*KU,2*KU+mod(N,2*KU)),STAT=allocstat)
+    if (allocstat /=0) then
+     write(*,*) 'Memory allocation failed'
+     stop
+    endif 
+    
+    ipiv=0;   CjL=0;   BjL=0;   AAL=0;   CCL=0;   EE=0
+    
+!  LAST ARRAYS needs extra p rows in middle of Cj & Pj now 2KU+p square
+!       CjL=Cj(:,:,jj)+matmul(Pj(:,:,jj),ud(:,:,0)) when p=0 & jj=N/2
+         j=(N-p)/2+1-KU ! is found at middle 
+         do i=1,2*KU+p
+          do k=1,2*KU+p
+          if (ABS(k-i) <=  KU) then
+           CjL(i,k)=AB(KU+k-i+1,j+i-1)
+          endif
+          end do 
+         end do   
+         
 !  IDENTITY MATRIX WITH p extra rows of zeroes in the middle
    IDENTS=0
    forall(j = 1:KU) IDENTS(j,j) = 1    
@@ -177,27 +208,21 @@
        IDENTS(i,k)=1
       endif
      end do 
-    end do
-
-!   main loop function
-    call forward_dcbsv(1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1,UD, UE, LL)  
-       
-!  LAST EQUATION  (last j from above+KU)    
-    jj=(N-p)/(2*KU)       
-!   j=(N-p)/2+1-KU      
+    end do                
+  
 !   remaining values of B centrally
     do i=1,2*KU+p
       BjL(i,1:NRHS)=B((N-p)/2-KU+i,1:NRHS)   ! write BjL with RHS
     end do
-    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)
+    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,SjL,2*KU,UE(:,jj-1,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)
     call DGEMM('N','N',2*KU+p,NRHS,2*KU,1.0_wp,IDENTS,2*KU+p,CC(:,1:NRHS),2*KU,0.0_wp,CCL(:,1:NRHS),2*KU+p)        
     CCL(:,1:NRHS)=BjL(:,1:NRHS)-CCL(:,1:NRHS)
-!    CCL(:,1:NRHS)=BjL(:,1:NRHS)-matmul(IDENTS,matmul(Sj(:,:,jj),UE(:,jj-1,1:NRHS)))    
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
+!    CCL(:,1:NRHS)=BjL(:,1:NRHS)-matmul(IDENTS,matmul(SjL,UE(:,jj-1,1:NRHS)))    
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,SjL,2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
     call DGEMM('N','T',2*KU,2*KU+p,2*KU,1.0_wp,AA,2*KU,IDENTS,2*KU+p,0.0_wp,BL,2*KU)
     call DGEMM('N','N',2*KU+p,2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,BL,2*KU,0.0_wp,AAL,2*KU+p)
     AAL=CjL+AAL
-!    AAL=CjL+matmul(IDENTS,matmul(matmul(Sj(:,:,jj),UD(:,:,jj-1)),Transpose(IDENTS)))   
+!    AAL=CjL+matmul(IDENTS,matmul(matmul(SjL,UD(:,:,jj-1)),Transpose(IDENTS)))   
     call DGESV(2*KU+p, NRHS , AAL, 2*KU+p, IPIV, CCL(:,1:NRHS), 2*KU+p, INFO ) ! overwrites CCL
 !    call GaussJordan( 2*KU+p, NRHS, AAL ,2*KU+p, CCL(:,1:NRHS), 2*KU+p, INFO )  ! overwrites CCL        
     if (info /= 0) then        
@@ -239,6 +264,8 @@
   do i=1,2*KU+p
      B((N-p)/2-KU+i,1:NRHS)=D(i,1:NRHS)
   end do
+  
+  deallocate(SjL,BjL,CjL,AA,D,ipiv,AAL,CCL,CC,EE,BL,IDENTS)
   
 END SUBROUTINE dcbsv
 
