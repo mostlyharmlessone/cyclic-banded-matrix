@@ -169,6 +169,9 @@
     call forward_dcbsv(1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1,UD, UE, LL) 
      
     deallocate(Cj,Pj)
+    if (p /= 0) then
+        allocate(D(2*KU+mod(N,2*KU),NRHS))
+    endif
     allocate(SjL(2*KU,2*KU))  
 !   LAST EQUATION  (last j from above+KU)    
     jj=(N-p)/(2*KU)       
@@ -177,7 +180,6 @@
     deallocate(Sj) 
     allocate(ipiv(2*KU+mod(N,2*KU)))        
     allocate(BjL(2*KU+mod(N,2*KU),NRHS),CjL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)))
-    allocate(D(2*KU+mod(N,2*KU),NRHS))
     allocate(AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU),NRHS))
     allocate(AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS))    
     allocate(IDENTS(2*KU+mod(N,2*KU),2*KU),BL(2*KU,2*KU+mod(N,2*KU)),STAT=allocstat)
@@ -229,9 +231,11 @@
      CALL XERBLA( 'DGESV/DCBSV ', INFO )
      RETURN
     else
-    do i=1,2*KU+p
+    if (p /=0 ) then                     
+     do i=1,2*KU+p
       D(i,1:NRHS)=CCL(i,1:NRHS)          ! store RHS with solution for inner values      
-    end do        
+     end do
+    endif        
     do i=1,KU
       Bj(i,jj,1:NRHS)=CCL(i,1:NRHS)      ! write Bj with RHS
       end do                             ! but exclude middle p values      
@@ -260,12 +264,14 @@
      ii=ii-1      
     end do               
   end do
-! write saved central values    
-  do i=1,2*KU+p
+! write saved central values
+  if (p /= 0) then    
+   do i=1,2*KU+p
      B((N-p)/2-KU+i,1:NRHS)=D(i,1:NRHS)
-  end do
-  
-  deallocate(SjL,BjL,CjL,AA,D,ipiv,AAL,CCL,CC,EE,BL,IDENTS)
+   end do
+   deallocate(D)
+  endif
+  deallocate(SjL,BjL,CjL,AA,ipiv,AAL,CCL,CC,EE,BL,IDENTS)
   
 END SUBROUTINE dcbsv
 

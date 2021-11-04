@@ -78,18 +78,16 @@
 
 !  .. Work space ..
    REAL(wp) :: Bj(2*KU,N/(2*KU)+1,NRHS)  
-   REAL(wp) :: Cj(2*KU,2*KU,N/(2*KU)+1)
-   REAL(wp) :: Pj(2*KU,2*KU,N/(2*KU)+1)
-   REAL(wp) :: Sj(2*KU,2*KU,N/(2*KU)+1)       
+   REAL(wp), ALLOCATABLE :: Cj(:,:,:),Pj(:,:,:),Sj(:,:,:)       
    REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+1) ! ud is my set of matrices Aj
    REAL(wp) :: UE(2*KU,0:N/(2*KU)+1,NRHS)      ! ue is my vectors vj 
-   REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
-   REAL(wp) :: CCL(2*KU,NRHS)
+   REAL(wp), ALLOCATABLE :: A(:,:),AA(:,:),CC(:,:),CCL(:,:) !working space
+   REAL(wp), ALLOCATABLE :: Cj1(:,:),Sj1(:,:),Pj1(:,:)   
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
-   INTEGER ::  i,j,k,kk,hh,LL,p,ii,jj,ipiv(2*KU)
-    
+   INTEGER ::  i,j,k,kk,hh,LL,p,ii,jj,ipiv(2*KU),allocstat
+       
    p=mod(N,2*KU)
-      
+        
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !     November 2006
@@ -109,8 +107,14 @@
       END IF
 !     end info handling
 !
+    allocate(Cj(2*KU,2*KU,N/(2*KU)+1),Pj(2*KU,2*KU,N/(2*KU)+1),Sj(2*KU,2*KU,N/(2*KU)+1))
+    if (allocstat /=0) then
+     write(*,*) 'Memory allocation failed'
+     stop
+    endif
+    
 !  Initialize
-   ipiv=0;   Bj=0;   Cj=0;   Pj=0;   CCL=0;   EE=0;   Sj=0   
+   ipiv=0;   Bj=0;   Cj=0;   Pj=0;   Sj=0   
    jj=0  !index of number of arrays
 
 !   Setup the arrays             
@@ -242,17 +246,27 @@
     endif  ! info =0
     deallocate (Cp,Sp,Bp,EEK)                        
    endif ! p /=0
-       
+
+!   main loop       
     call backward_dcbsv(KU, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, 0,size(UD,3)-1,UD, UE, LL)
+    
+    allocate(Cj1(2*KU,2*KU),Sj1(2*KU,2*KU),Pj1(2*KU,2*KU),STAT=allocstat)
+    if (allocstat /=0) then
+     write(*,*) 'Memory allocation failed'
+     stop
+    endif    
+    Cj1=Cj(:,:,1) ; Sj1=Sj(:,:,1) ; Pj1=Pj(:,:,1)
+    deallocate(Cj,Pj,Sj)   
+    allocate(A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),CCL(2*KU,NRHS))
           
 !  LAST EQUATION in reverse jj=1  so BjL=Bj(:,1,1:NRHS); CjL=Cj(:,:,1)+matmul(Sj(:,:,1),ud(:,:,0))
-    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Pj(:,:,1),2*KU,UE(:,2,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)       
+    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Pj1,2*KU,UE(:,2,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)       
     CCL(:,1:NRHS)=Bj(:,1,1:NRHS)-CC(:,1:NRHS)
-!    CCL(:,1:NRHS)=Bj(:,1,1:NRHS)-matmul(Pj(:,:,1),UE(:,2,1:NRHS))    
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,1),2*KU,UD(:,:,2),2*KU,0.0_wp,A,2*KU)
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,1),2*KU,UD(:,:,0),2*KU,0.0_wp,AA,2*KU)    
-    A=Cj(:,:,1)+AA+A
-!    A=Cj(:,:,1)+matmul(Sj(:,:,1),ud(:,:,0))+matmul(Pj(:,:,1),UD(:,:,2))   
+!    CCL(:,1:NRHS)=Bj(:,1,1:NRHS)-matmul(Pj1,UE(:,2,1:NRHS))    
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj1,2*KU,UD(:,:,2),2*KU,0.0_wp,A,2*KU)
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj1,2*KU,UD(:,:,0),2*KU,0.0_wp,AA,2*KU)    
+    A=Cj1+AA+A
+!    A=Cj1+matmul(Sj1,ud(:,:,0))+matmul(Pj1,UD(:,:,2))   
     call DGESV(2*KU, NRHS , A, 2*KU, IPIV, CCL(:,1:NRHS), 2*KU, INFO ) ! overwrites CCL 
 !    call GaussJordan( 2*KU, NRHS, A ,2*KU, CCL(:,1:NRHS), 2*KU, INFO )  ! overwrites CCL       
     if (info /= 0) then        
@@ -283,6 +297,8 @@
      end do  
      ii=ii+1      
     end do               
-  end do    
+  end do  
+  
+  deallocate(A,AA,CC,CCL,Cj1,Sj1,Pj1)  
   
 END SUBROUTINE dcbsv
