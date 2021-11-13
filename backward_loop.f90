@@ -1,4 +1,4 @@
-  subroutine backward_dcbsv( L, N, KU, LB,Bj,Cj,Pj,Sj, NRHS, INFO, LR,LU,UDR, UER, LL)
+  subroutine backward_loop( L, N, KU, LB,Bj,Cj,Pj,Sj, NRHS, INFO, LR,LU,UDR, UER, LL)
   Use lapackinterface
   IMPLICIT NONE   
 !  PURPOSE backward iterative loop
@@ -54,6 +54,6 @@
    end do
    LL=jj
    
-  end subroutine backward_dcbsv
+  end subroutine backward_loop
   
   

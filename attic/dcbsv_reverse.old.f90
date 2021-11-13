@@ -1,4 +1,4 @@
-   SUBROUTINE DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
+   SUBROUTINE DCBSV_R( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
    Use lapackinterface  
    IMPLICIT NONE
 !   Copyright (c) 2021   Anthony M de Beus
@@ -6,7 +6,7 @@
 !   using an O(N/KU+KU)xKUxKU algorithm 
 
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision 
-       
+
 !  Arguments copied and modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !      Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !      November 2006
@@ -77,22 +77,19 @@
    Real(wp), Intent(INOUT) ::  B( ldb, * )
 
 !  .. Work space ..
-   REAL(wp) :: Bj(2*KU,N/(2*KU)+2*KU,NRHS)  
-   REAL(wp) :: Cj(2*KU,2*KU,N/(2*KU)+2*KU)
-   REAL(wp) :: Pj(2*KU,2*KU,N/(2*KU)+2*KU)
-   REAL(wp) :: Sj(2*KU,2*KU,N/(2*KU)+2*KU)   
-   REAL(wp) :: BjL(2*KU+mod(N,2*KU),NRHS)   
-   REAL(wp) :: CjL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)) 
-   REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+2*KU) ! ud is my set of matrices Aj
-   REAL(wp) :: UE(2*KU,0:N/(2*KU)+2*KU,NRHS)      ! ue is my vectors vj 
+   REAL(wp) :: Bj(2*KU,N/(2*KU)+1,NRHS)  
+   REAL(wp) :: Cj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp) :: Pj(2*KU,2*KU,N/(2*KU)+1)
+   REAL(wp) :: Sj(2*KU,2*KU,N/(2*KU)+1)       
+   REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+1) ! ud is my set of matrices Aj
+   REAL(wp) :: UE(2*KU,0:N/(2*KU)+1,NRHS)      ! ue is my vectors vj 
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
-   REAL(wp) :: IDENTS(2*KU+mod(N,2*KU),2*KU),BL(2*KU,2*KU+mod(N,2*KU))
-   REAL(wp) :: AAL(2*KU+mod(N,2*KU),2*KU+mod(N,2*KU)),CCL(2*KU+mod(N,2*KU),NRHS)
-   Real(wp) :: D(2*KU+mod(N,2*KU),NRHS)   
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU+mod(N,2*KU))
+   REAL(wp) :: CCL(2*KU,NRHS)
+   REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU)
     
    p=mod(N,2*KU)
-   
+      
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
 !     November 2006
@@ -117,13 +114,12 @@
    Bj=0
    Cj=0
    Pj=0
-   CjL=0
-   BjL=0
-   AAL=0
    CCL=0
    EE=0   
    Sj=0   
-   jj=0  !index of number of arrays       
+   jj=0  !index of number of arrays
+
+!   Setup the arrays             
     do j=1,(N-p)/2+1-KU,KU   
        jj=jj+1
          do i=1,KU
@@ -135,8 +131,8 @@
            endif 
            if ( k >= i ) then
             Sj(i,k,jj)=AB(1+k-i,j+i-1)
-           endif                     
-          end do
+           endif                    
+          end do 
          end do       
          do i=KU+1,2*KU
           Bj(i,jj,1:NRHS)=B(n-2*KU+i-j+1,1:NRHS)         
@@ -151,59 +147,125 @@
           end do 
          end do                              
    end do
-
-!  LAST ARRAYS needs extra p rows in middle of Cj & Pj now 2KU+p square
-!       CjL=Cj(:,:,jj)+matmul(Pj(:,:,jj),ud(:,:,0)) when p=0 & jj=N/2
-         j=(N-p)/2+1-KU ! is found at middle 
-         do i=1,2*KU+p
-          do k=1,2*KU+p
-          if (ABS(k-i) <=  KU) then
-           CjL(i,k)=AB(KU+k-i+1,j+i-1)
-          endif
-          end do 
-         end do              
-         
-!  FIRST EQUATION 
-!  initial values
-!  FIRST EQUATION V(0)=0 & A(0) = permuted identity
+   
+!  LAST ARRAY in reverse uses p=0 formula
    UE(:,0,:)=0
    UD(:,:,0)=0
    do i=1,2*KU
      do k=1,2*KU
       if ( (ABS(k - i) - KU) == 0 ) then
-        UD(i,k,0)=1
+        UD(i,k,0)=1        
       endif
      end do 
-   end do
-
-!  IDENTITY MATRIX WITH p extra rows of zeroes in the middle
-   IDENTS=0
-   forall(j = 1:KU) IDENTS(j,j) = 1    
-    do i=1+KU+p,2*KU+p
-     do k=KU,2*KU
-      if ( i == k+p ) then
-       IDENTS(i,k)=1
+   end do        
+               
+!  FIRST EQUATION if p=0 V(N/(2*KU)=0 & A(N/(2*KU) = permuted identity
+   if (p == 0) then
+    UE(:,N/(2*KU)+1,:)=0
+    UD(:,:,N/(2*KU)+1)=0
+    do i=1,2*KU
+     do k=1,2*KU
+      if ( (ABS(k - i) - KU) == 0 ) then
+        UD(i,k,N/(2*KU)+1)=1
       endif
      end do 
     end do
-         
-!  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
-   jj=0  !index of number of arrays
-   do j=1,(N-p)/2-KU,KU      
-    jj=jj+1     
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
+   else
+   
+!  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
+    UE(:,(N-p)/(2*KU)+1,:)=0
+    UD(:,:,(N-p)/(2*KU)+1)=0
+    if (p < KU) then
+!    needs A0 in center 2(KU-p) in size
+!    result is 2KUx2KU
+!     sqsize=2*KU-2*p
+      do i=p+1,2*KU-p
+       do k=p+1,2*KU-p
+        if ( ABS(k - i) == (KU-p) ) then
+         UD(i,k,(N-p)/(2*KU)+1)=1
+        endif
+       end do 
+      end do 
+     endif
+   allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS))
+!  FIRST ARRAYS now p square and px2*KU at the middle values
+   Cp=0
+   Sp=0
+   EEK=0
+   j=(N-p)/2+1   ! is the start of the middle p values                        
+   do i=1,p
+    Bp(i,1:NRHS)=B(j+i-1,1:NRHS)
+    do k=1,p
+     if (KU+k-i+1 >= 1 .AND. KU+k-i+1 <= 2*KU+1 ) then
+      Cp(i,k)=AB(KU+k-i+1,j+i-1)
+     endif 
+    end do
+    do k=KU+1,2*KU-p+i 
+     Sp(i,k)=AB(k+p-i+1,j+i-1)
+    end do 
+    do k=1,KU
+     if (k >= i) then
+      if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
+       Sp(i,k)=AB(1+k-i,j+i-1)
+      endif
+     endif
+    end do
+   end do       
+!   solve for UE and precursor of UD
+!   Cp zpj = -Sp zj + Bp
+!   concatenate UD precursor and UD solutions onto EEK        
+    EEK(:,1:2*KU)=-Sp(:,:)
+    do hh=1,NRHS
+      EEK(:,2*KU+hh)=Bp(:,hh)     
+    end do     
+    call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EEK into solution, overwrites Cp 
+!    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )   ! overwrites EEK into solution, overwrites Cp into inverse     
+    if (info /= 0) then
+     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
+     RETURN
+    else
+!    Two cases, p < KU or p >= KU (p <=2*KU always since p=mod(N,2*KU))    
+!    p rows on top and bottom    
+     if ( p <= KU ) then     
+     do i=1,p    
+      UD(i,:,(N-p)/(2*KU)+1)=EEK(i,1:2*KU)
+      UD(2*KU-i+1,:,(N-p)/(2*KU)+1)=EEK(p-i+1,1:2*KU)                  
+      do hh=1,NRHS     
+       UE(i,(N-p)/(2*KU)+1,hh)=EEK(i,2*KU+hh)
+       UE(2*KU-i+1,(N-p)/(2*KU)+1,hh)=EEK(p-i+1,2*KU+hh)                 
+      end do
+     end do
+     else     ! p > KU
+     do i=1,KU    
+      UD(i,:,(N-p)/(2*KU)+1)=EEK(i,1:2*KU)
+      UD(2*KU-i+1,:,(N-p)/(2*KU)+1)=EEK(p-i+1,1:2*KU)                  
+      do hh=1,NRHS     
+       UE(i,(N-p)/(2*KU)+1,hh)=EEK(i,2*KU+hh)
+       UE(2*KU-i+1,(N-p)/(2*KU)+1,hh)=EEK(p-i+1,2*KU+hh)                 
+      end do
+     end do
+     endif          
+    endif  ! info =0
+    deallocate (Cp,Sp,Bp,EEK)                        
+   endif ! p /=0
+       
+!  ALL BUT THE LAST EQUATION, GENERATE UD & UE  !   (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
+   jj=(N-p)/(2*KU)+1  !index of number of arrays   
+    do j=(N-p)/2,2*KU,-KU ! j not used; just a counter      
+    jj=jj-1    
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UD(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
-!    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))        
+!    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UD(:,:,jj+1))        
 !   concatenate Aj and vj solutions onto EE        
-     EE(:,1:2*KU)=-Pj(:,:,jj)
+     EE(:,1:2*KU)=-Sj(:,:,jj)
      do hh=1,NRHS
-      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1) 
+      call DGEMV('N',2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UE(:,jj+1,hh),1,0.0_wp,CC(:,hh),1) 
       EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
-!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
+!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Pj(:,:,jj),UE(:,jj+1,hh))
      end do
 !    compute next UD,UE using factored A
     call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
-!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                   
+!    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                    
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
      RETURN
@@ -212,65 +274,47 @@
     do hh=1,NRHS     
      UE(:,jj,hh)=EE(:,2*KU+hh)                
     end do    
-    endif              
+    endif  
    end do 
-   
-!  LAST EQUATION  (last j from above+KU)    
-    jj=(N-p)/(2*KU)       
-!   j=(N-p)/2+1-KU      
-!   remaining values of B centrally
-    do i=1,2*KU+p
-      BjL(i,1:NRHS)=B((N-p)/2-KU+i,1:NRHS)   ! write BjL with RHS
-    end do
-    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)
-    call DGEMM('N','N',2*KU+p,NRHS,2*KU,1.0_wp,IDENTS,2*KU+p,CC(:,1:NRHS),2*KU,0.0_wp,CCL(:,1:NRHS),2*KU+p)        
-    CCL(:,1:NRHS)=BjL(:,1:NRHS)-CCL(:,1:NRHS)
-!    CCL(:,1:NRHS)=BjL(:,1:NRHS)-matmul(IDENTS,matmul(Sj(:,:,jj),UE(:,jj-1,1:NRHS)))    
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
-    call DGEMM('N','T',2*KU,2*KU+p,2*KU,1.0_wp,AA,2*KU,IDENTS,2*KU+p,0.0_wp,BL,2*KU)
-    call DGEMM('N','N',2*KU+p,2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,BL,2*KU,0.0_wp,AAL,2*KU+p)
-    AAL=CjL+AAL
-!    AAL=CjL+matmul(IDENTS,matmul(matmul(Sj(:,:,jj),UD(:,:,jj-1)),Transpose(IDENTS)))   
-    call DGESV(2*KU+p, NRHS , AAL, 2*KU+p, IPIV, CCL(:,1:NRHS), 2*KU+p, INFO ) ! overwrites CCL
-!    call GaussJordan( 2*KU+p, NRHS, AAL ,2*KU+p, CCL(:,1:NRHS), 2*KU+p, INFO )  ! overwrites CCL        
+          
+!  LAST EQUATION in reverse jj=1  so BjL=Bj(:,1,1:NRHS); CjL=Cj(:,:,1)+matmul(Sj(:,:,1),ud(:,:,0))
+    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Pj(:,:,1),2*KU,UE(:,2,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)       
+    CCL(:,1:NRHS)=Bj(:,1,1:NRHS)-CC(:,1:NRHS)
+!    CCL(:,1:NRHS)=Bj(:,1,1:NRHS)-matmul(Pj(:,:,1),UE(:,2,1:NRHS))    
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,1),2*KU,UD(:,:,2),2*KU,0.0_wp,A,2*KU)
+    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,1),2*KU,UD(:,:,0),2*KU,0.0_wp,AA,2*KU)    
+    A=Cj(:,:,1)+AA+A
+!    A=Cj(:,:,1)+matmul(Sj(:,:,1),ud(:,:,0))+matmul(Pj(:,:,1),UD(:,:,2))   
+    call DGESV(2*KU, NRHS , A, 2*KU, IPIV, CCL(:,1:NRHS), 2*KU, INFO ) ! overwrites CCL 
+!    call GaussJordan( 2*KU, NRHS, A ,2*KU, CCL(:,1:NRHS), 2*KU, INFO )  ! overwrites CCL       
     if (info /= 0) then        
      CALL XERBLA( 'DGESV/DCBSV ', INFO )
      RETURN
-    else
-    do i=1,2*KU+p
-      D(i,1:NRHS)=CCL(i,1:NRHS)          ! store RHS with solution for inner values      
+    else              
+    do i=1,2*KU
+      Bj(i,1,1:NRHS)=CCL(i,1:NRHS)   ! write Bj with RHS
+    end do                                         
+    endif 
+        
+!   BACKSUBSTITUTION z(j+1)=UE(j+1)+UD(:,:,j+1)*z(j) 
+    do jj=1,(N-p)/(2*KU)
+     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj+1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
+     Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+CC(:,1:NRHS)
+!      Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+matmul(UD(:,:,jj+1),Bj(:,jj,1:NRHS))
     end do        
-    do i=1,KU
-      Bj(i,jj,1:NRHS)=CCL(i,1:NRHS)      ! write Bj with RHS
-      end do                             ! but exclude middle p values      
-    do i=KU+1,2*KU
-      Bj(i,jj,1:NRHS)=CCL(i+p,1:NRHS)
-    end do 
-    endif
     
-!   BACKSUBSTITUTION z(j-1)=UE(j-1)+UD(:,:,j-1)*z(j) 
-    do jj=(N-p)/(2*KU),2,-1
-     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
-     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
-!      Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))
-    end do
-     
   do kk=1,NRHS         
-    ii=(N-p)/(2*KU)      
-!    overwrite RHS with solution Bj      
-    do j=(N-p)/2+1-KU,1,-KU            
+    ii=1      
+!   overwrite RHS with solution Bj      
+    do j=1,(N-p)/2+1,KU            
      do i=1,KU
       B(j+i-1,kk)=Bj(i,ii,kk)   
      end do   
      do i=KU+1,2*KU
       B(N-2*KU+i-j+1,kk)=Bj(i,ii,kk)   
-     end do 
-     ii=ii-1      
+     end do  
+     ii=ii+1      
     end do               
-  end do
-! write saved central values    
-  do i=1,2*KU+p
-     B((N-p)/2-KU+i,1:NRHS)=D(i,1:NRHS)
-  end do
+  end do    
   
-END SUBROUTINE dcbsv
+END SUBROUTINE dcbsv_r

@@ -270,9 +270,9 @@
 !  separate iterative parts into subroutines so each thread can work in parallel
    thread = omp_get_thread_num()
    if (thread==0) then
-    call forward_dcbsv(L, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1,UD, UE, LL)     
+    call forward_loop(L, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1 , UD, UE, JJ)     
    else
-    call backward_dcbsv(L, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, N/(4*KU),N/(2*KU)+1,UDR, UER, LL)
+    call backward_loop(L, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, N/(4*KU),N/(2*KU)+1,UDR, UER, LL)
    endif
 !$OMP END PARALLEL
 
@@ -351,6 +351,8 @@
    endif
         
   END SUBROUTINE dcbsv
+  
+
 
 
 

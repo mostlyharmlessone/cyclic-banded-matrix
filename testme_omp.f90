@@ -1,11 +1,11 @@
 
-    program testme_large
+    program testme_omp
     USE OMP_LIB
     use AB_matrix_fct, only : multiply, RowConvert, ColumnConvert
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=85000 ! size of problem
+    INTEGER, PARAMETER :: n=90000 ! size of problem
     INTEGER, PARAMETER :: KU=158 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0   ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
@@ -124,6 +124,34 @@
     write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))
     write(*,*) ' '
     
+    d=dd
+    write(*,*) 'Using dcbsv_f.f90, O(n)'
+    time_start=omp_get_wtime()
+    call DCBSV_F( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+    time_end=omp_get_wtime()    
+    write(*,*) 'time: ',time_end-time_start
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
+    z=multiply(AB,s(:,:))
+    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1)) 
+    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))
+    write(*,*) ' '
+    
+    d=dd
+    write(*,*) 'Using dcbsv_r.f90, O(n)'
+    time_start=omp_get_wtime()
+    call DCBSV_R( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+    time_end=omp_get_wtime()    
+    write(*,*) 'time: ',time_end-time_start
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
+    z=multiply(AB,s(:,:))
+    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1)) 
+    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))
+    write(*,*) ' '
+    
+    
+    
 !    zz=d    ! save the solution
 !    d=z-dd  !RHS error
 !    write(*,*) 'iterative step'
@@ -151,5 +179,5 @@
      deallocate(AB,CD,d,a,b,c,s,dd,z,a_short,ipiv)
 
 
-   END PROGRAM testme_large
+   END PROGRAM testme_omp
 

@@ -16,7 +16,7 @@ Removing XERBLA from dctsv.f90 removes the LAPACK/BLAS dependency.
 
 Removing the LAPACK/BLAS dependency in dcbsv requires substitution by intrinsic Fortran array operators instead of LAPACK & BLAS calls and substitution of LAPACK's dgesv.f  & dgetr(fsi).f by another suitable general matrix solver (e.g. the included gauss-jordan.f90).  The intrinsic operators and calls to the alternate matrix solver are commented out immediately after their respective LAPACK calls, making it easy to switch.
 
-The algorithm can be run forwards or backwards, with dcbsv.f90, dcbsv_reverse.f90, or both simultaneously using OpenMP with dcbsv_parallel_omp.f90.   The parallel OMP versions are predictably nearly twice as fast as the non parallel versions.
+The algorithm can be run forwards or backwards, with dcbsv_forward.f90, dcbsv_reverse.f90, or both simultaneously using OpenMP with dcbsv_parallel_omp.f90.   The parallel OMP versions can be nearly twice as fast as the non parallel versions depending on the parameters.
 
 A fortran 90 module LapackInterface.f90 is included for compatibility with FORTRAN 77. Note that the module only needs to be compiled once and is only needed for LAPACK/BLAS compatibility.
 
@@ -37,22 +37,18 @@ Band matrices are defined per LAPACK convention https://www.netlib.org/lapack/lu
                                                      a91 a92 0   0    0   0  a97 a98 a99
 													 
 													 
-A fortran 90 module AB_matrix_fct.f90 to work with the defined periodic banded matrix and their non-cyclic LAPACK counterpart is included.  Note that the module only needs to be compiled once.
+A fortran 90 module AB_matrix_fct.f90 to work with the defined periodic banded matrix and their non-cyclic LAPACK counterpart is included.  Note that the module only needs to be compiled once.  The main loops of the algorithms are included as forward_loop.f90 and backward_loop.f90.
  
 Two simple test programs are included, testme.f90 using full matrix routines as well as the LAPACK banded noncyclic routines dgtsv and dgbsv for comparison and testme_omp.f90 for larger N with a simple tridiagonal solver thomas.f90 for comparison purposes. CityPlots https://math.nist.gov/MatrixMarket/ of the matrices can be generated with the included Mathematica(R) notebook CityPlot.nb
 
 Using gfortran
 ```
 gfortran -c LapackInterface.f90 
-gfortran testme.f90 dctsv.f90 dcbsv.f90 gauss-jordan.f90 -llapack -lblas
-
-or (after commenting out dgesv in testme.f90)
-
-gfortran testme.f90 dctsv.f90 dcbsv.f90 gauss-jordan.f90
+gfortran testme.f90 dctsv.f90 dcbsv_forward.f90 dcbsv_reverse.f90 forward_loop.f90 backward_loop.f90 gauss-jordan.f90 -llapack -lblas
 
 parallel versions with OpenMP
 
-gfortran -fopenmp -O3 testme_omp.f90 dcbsv_parallel_omp.f90 dctsv_parallel_omp.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 -llapack -lblas
+gfortran -fopenmp -O3 testme_omp.f90 dcbsv_parallel_omp.f90 dcbsv_forward.f90 dcbsv_reverse.f90 dctsv_parallel_omp.f90 forward_loop.f90 backward_loop.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 -llapack -lblas
 
 ./a.out
 

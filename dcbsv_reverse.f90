@@ -1,4 +1,4 @@
-   SUBROUTINE DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
+   SUBROUTINE DCBSV_R( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
    Use lapackinterface  
    IMPLICIT NONE
 !   Copyright (c) 2021   Anthony M de Beus
@@ -248,7 +248,7 @@
    endif ! p /=0
 
 !   main loop       
-    call backward_dcbsv(KU, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, 0,size(UD,3)-1,UD, UE, LL)
+    call backward_loop(KU, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, 0,size(UD,3)-1,UD, UE, LL)
     
     allocate(Cj1(2*KU,2*KU),Sj1(2*KU,2*KU),Pj1(2*KU,2*KU),STAT=allocstat)
     if (allocstat /=0) then
@@ -301,4 +301,4 @@
   
   deallocate(A,AA,CC,CCL,Cj1,Sj1,Pj1)  
   
-END SUBROUTINE dcbsv
+END SUBROUTINE dcbsv_r

@@ -1,4 +1,4 @@
-subroutine forward_dcbsv(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU,UD,UE, LL)
+subroutine forward_loop(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
   Use lapackinterface
   IMPLICIT NONE   
 !  PURPOSE forward iterative loop
@@ -25,7 +25,7 @@ subroutine forward_dcbsv(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU,UD,UE, LL)
 !! FORWARD   
    !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  ! (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
    jj=0  !index of number of arrays
-   do j=L,(N-p)/2-KU,KU      
+   do j=L,(N-p)/2,KU      
     jj=jj+1     
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
@@ -52,4 +52,4 @@ subroutine forward_dcbsv(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU,UD,UE, LL)
    end do
    LL=jj
    
-  end subroutine forward_dcbsv
+  end subroutine forward_loop

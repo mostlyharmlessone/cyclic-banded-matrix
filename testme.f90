@@ -155,13 +155,24 @@
 
     d=matmul(aij,s)
     call CPU_TIME(time_start)
-    call DCBSV( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+    call DCBSV_F( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
     call CPU_TIME(time_end)
     write(*,*) 'Using dcbsv.f90, O(n)'    
     write(*,*) 'time: ',time_end-time_start
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
     write(*,*) ' '
+    
+        d=matmul(aij,s)
+    call CPU_TIME(time_start)
+    call DCBSV_R( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+    call CPU_TIME(time_end)
+    write(*,*) 'Using dcbsv.f90, O(n)'    
+    write(*,*) 'time: ',time_end-time_start
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
+    write(*,*) ' '
+    
 
 !    LAPACK routine for non-cyclic system
      if (KL > 0) then   
