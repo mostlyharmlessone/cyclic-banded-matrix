@@ -137,33 +137,34 @@
    UER=0;   UDR=0;   UE=0;   UD=0  
    jj=0  !index of number of arrays
 
-!   Setup the arrays             
+
+!   Setup the arrays       
     do j=1,(N-p)/2+1-KU,KU   
-       jj=jj+1
+       jj=jj+1                  
          do i=1,KU
            Bj(i,jj,1:NRHS)=B(j+i-1,1:NRHS)
           do k=1,KU
            Cj(i,k,jj)=AB(KU+k-i+1,j+i-1)
-           if ( k <= i ) then
+          end do
+          do k=1,i
             Pj(i,k,jj)=AB(2*KU+1+k-i,j+i-1)
-           endif 
-           if ( k >= i ) then
+          end do
+          do k=i,KU
             Sj(i,k,jj)=AB(1+k-i,j+i-1)
-           endif                    
           end do 
-         end do       
+         end do               
          do i=KU+1,2*KU
-          Bj(i,jj,1:NRHS)=B(n-2*KU+i-j+1,1:NRHS)         
+          Bj(i,jj,1:NRHS)=B(n-2*KU+i-j+1,1:NRHS)        
           do k=KU+1,2*KU
            Cj(i,k,jj)=AB(KU+k-i+1,n-2*KU+i-j+1)
-           if ( k >= i ) then
+          end do
+          do k=i,2*KU 
             Pj(i,k,jj)=AB(1+k-i,n-2*KU+i-j+1)
-           endif 
-           if ( k <= i ) then
+          end do
+          do k=KU+1,i 
             Sj(i,k,jj)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
-           endif                     
           end do 
-         end do                              
+         end do                                                     
    end do
 
 !  IDENTITY MATRIX 
