@@ -135,37 +135,37 @@
 !  Initialize
    ipiv=0;   Bj=0;   Cj=0;   Pj=0;   CCL=0;   EE=0;    Sj=0 
    UER=0;   UDR=0;   UE=0;   UD=0  
-   jj=0  !index of number of arrays
+   jj=0  !index of number of arrays, replaced by loop invariant (j-1)/KU+1 below to enable parallelism
 
-
-!   Setup the arrays       
-    do j=1,(N-p)/2+1-KU,KU   
-       jj=jj+1                  
+!   Setup the arrays  
+!$OMP PARALLEL DO PRIVATE(i,j,k)     
+    do j=1,(N-p)/2+1-KU,KU                     
          do i=1,KU
-           Bj(i,jj,1:NRHS)=B(j+i-1,1:NRHS)
+           Bj(i,(j-1)/KU+1,1:NRHS)=B(j+i-1,1:NRHS)
           do k=1,KU
-           Cj(i,k,jj)=AB(KU+k-i+1,j+i-1)
+           Cj(i,k,(j-1)/KU+1)=AB(KU+k-i+1,j+i-1)
           end do
           do k=1,i
-            Pj(i,k,jj)=AB(2*KU+1+k-i,j+i-1)
+            Pj(i,k,(j-1)/KU+1)=AB(2*KU+1+k-i,j+i-1)
           end do
           do k=i,KU
-            Sj(i,k,jj)=AB(1+k-i,j+i-1)
+            Sj(i,k,(j-1)/KU+1)=AB(1+k-i,j+i-1)
           end do 
-         end do               
+         end do                        
          do i=KU+1,2*KU
-          Bj(i,jj,1:NRHS)=B(n-2*KU+i-j+1,1:NRHS)        
+          Bj(i,(j-1)/KU+1,1:NRHS)=B(n-2*KU+i-j+1,1:NRHS)        
           do k=KU+1,2*KU
-           Cj(i,k,jj)=AB(KU+k-i+1,n-2*KU+i-j+1)
+           Cj(i,k,(j-1)/KU+1)=AB(KU+k-i+1,n-2*KU+i-j+1)
           end do
           do k=i,2*KU 
-            Pj(i,k,jj)=AB(1+k-i,n-2*KU+i-j+1)
+            Pj(i,k,(j-1)/KU+1)=AB(1+k-i,n-2*KU+i-j+1)
           end do
           do k=KU+1,i 
-            Sj(i,k,jj)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
+            Sj(i,k,(j-1)/KU+1)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
           end do 
-         end do                                                     
+         end do                                                              
    end do
+!$OMP END PARALLEL DO  
 
 !  IDENTITY MATRIX 
    IDENT=0 
