@@ -3,7 +3,7 @@
    IMPLICIT NONE
 !   Copyright (c) 2021   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
-!   using an O(N/KU+KU)xKUxKU algorithm 
+!   using an O(N*KU) algorithm 
 
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision 
 
@@ -77,10 +77,9 @@
    Real(wp), Intent(INOUT) ::  B( ldb, * )
 
 !  .. Work space ..
-   REAL(wp) :: Bj(2*KU,N/(2*KU)+1,NRHS)  
+   REAL(wp),ALLOCATABLE :: Bj(:,:,:)  
    REAL(wp), ALLOCATABLE :: Cj(:,:,:),Pj(:,:,:),Sj(:,:,:)       
-   REAL(wp) :: UD(2*KU,2*KU,0:N/(2*KU)+1) ! ud is my set of matrices Aj
-   REAL(wp) :: UE(2*KU,0:N/(2*KU)+1,NRHS)      ! ue is my vectors vj 
+   REAL(wp), ALLOCATABLE :: UD(:,:,:),UE(:,:,:) ! ud is my set of matrices Aj ue is my vectors vj 
    REAL(wp), ALLOCATABLE :: A(:,:),AA(:,:),CC(:,:),CCL(:,:) !working space
    REAL(wp), ALLOCATABLE :: Cj1(:,:),Sj1(:,:),Pj1(:,:)   
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
@@ -107,7 +106,9 @@
       END IF
 !     end info handling
 !
-    allocate(Cj(2*KU,2*KU,N/(2*KU)+1),Pj(2*KU,2*KU,N/(2*KU)+1),Sj(2*KU,2*KU,N/(2*KU)+1))
+    allocate(Bj(2*KU,(N-p)/(2*KU)+2*KU,NRHS),Cj(2*KU,2*KU,(N-p)/(2*KU)+2*KU))
+    allocate(Pj(2*KU,2*KU,(N-p)/(2*KU)+2*KU),Sj(2*KU,2*KU,(N-p)/(2*KU)+2*KU))
+    allocate(UD(2*KU,2*KU,0:(N-p)/(2*KU)+1),UE(2*KU,0:(N-p)/(2*KU)+1,NRHS),STAT=allocstat)
     if (allocstat /=0) then
      write(*,*) 'Memory allocation failed'
      stop
@@ -157,20 +158,20 @@
      end do 
    end do        
                
-!  FIRST EQUATION if p=0 V(N/(2*KU)=0 & A(N/(2*KU) = permuted identity
+!  FIRST EQUATION if p=0 V((N-p)/(2*KU)=0 & A((N-p)/(2*KU) = permuted identity
    if (p == 0) then
-    UE(:,N/(2*KU)+1,:)=0
-    UD(:,:,N/(2*KU)+1)=0
+    UE(:,(N-p)/(2*KU)+1,:)=0
+    UD(:,:,(N-p)/(2*KU)+1)=0
     do i=1,2*KU
      do k=1,2*KU
       if ( (ABS(k - i) - KU) == 0 ) then
-        UD(i,k,N/(2*KU)+1)=1
+        UD(i,k,(N-p)/(2*KU)+1)=1
       endif
      end do 
     end do
    else
    
-!  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
+!  if p /= 0 have to compute UD(:,:,(N-p)/(2*KU)+1), UE(:,(N-p)/(2*KU)+1,:)
     UE(:,(N-p)/(2*KU)+1,:)=0
     UD(:,:,(N-p)/(2*KU)+1)=0
     if (p < KU) then
@@ -248,8 +249,8 @@
    endif ! p /=0
 
 !   main loop       
-    call backward_loop(KU, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, 0,size(UD,3)-1,UD, UE, LL)
-    
+    call backward_loop(1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, 0,size(UD,3)-1,UD, UE, LL)
+      
     allocate(Cj1(2*KU,2*KU),Sj1(2*KU,2*KU),Pj1(2*KU,2*KU),STAT=allocstat)
     if (allocstat /=0) then
      write(*,*) 'Memory allocation failed'

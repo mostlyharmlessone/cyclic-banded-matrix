@@ -60,7 +60,7 @@
          info = -6
     END IF
     IF( info.NE.0 ) THEN
-!       CALL xerbla( 'GAUSSJ ', -info )
+       CALL xerbla( 'GAUSSJ ', -info )
        RETURN
     END IF
     
@@ -74,7 +74,7 @@
       do k=1,N
        if (ipiv(k) > 1) then
         info=ipiv(k)
-        write(*,*) 'Singular matrix in GaussJordan'       
+        write(*,*) 'Singular matrix in GaussJordan'   
         RETURN
        endif
        if(ipiv(k) == 1) then 

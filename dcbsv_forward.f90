@@ -3,7 +3,7 @@
    IMPLICIT NONE
 !   Copyright (c) 2021   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
-!   using an O(N/KU+KU)xKUxKU algorithm 
+!   using an O(N*KU) algorithm 
 
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision 
        
@@ -112,9 +112,9 @@
 
    p=mod(N,2*KU)
    
-   allocate(Bj(2*KU,N/(2*KU)+2*KU,NRHS),Cj(2*KU,2*KU,N/(2*KU)+2*KU))
-   allocate(Pj(2*KU,2*KU,N/(2*KU)+2*KU),Sj(2*KU,2*KU,N/(2*KU)+2*KU)) 
-   allocate(UD(2*KU,2*KU,0:N/(2*KU)+2*KU),UE(2*KU,0:N/(2*KU)+2*KU,NRHS),STAT=allocstat)     
+   allocate(Bj(2*KU,(N-p)/(2*KU)+2*KU,NRHS),Cj(2*KU,2*KU,(N-p)/(2*KU)+2*KU))
+   allocate(Pj(2*KU,2*KU,(N-p)/(2*KU)+2*KU),Sj(2*KU,2*KU,(N-p)/(2*KU)+2*KU)) 
+   allocate(UD(2*KU,2*KU,0:(N-p)/(2*KU)+1),UE(2*KU,0:(N-p)/(2*KU)+1,NRHS),STAT=allocstat)     
     if (allocstat /=0) then
      write(*,*) 'Memory allocation failed'
      stop
@@ -151,8 +151,8 @@
             Sj(i,k,jj)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
           end do 
          end do                                                     
-   end do            
-         
+   end do
+     
 !  FIRST EQUATION 
 !  initial values
 !  FIRST EQUATION V(0)=0 & A(0) = permuted identity
@@ -168,7 +168,7 @@
 
 !   main loop function
     call forward_loop(1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1,UD, UE, LL) 
-     
+    
     deallocate(Cj,Pj)
     if (p /= 0) then
         allocate(D(2*KU+mod(N,2*KU),NRHS))

@@ -23,10 +23,8 @@ subroutine forward_loop(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
    p=mod(N,2*KU)
 
 !! FORWARD   
-   !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  ! (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj
-   jj=0  !index of number of arrays
-   do j=L,(N-p)/2,KU      
-    jj=jj+1     
+!  ALL BUT THE LAST EQUATION, GENERATE UD & UE  ! (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj 
+   do jj=1,(N-p)/(2*KU)-L
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
 !    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))        

@@ -5,8 +5,8 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=90000 ! size of problem
-    INTEGER, PARAMETER :: KU=358 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: n=85!8592! 8950 ! size of problem
+    INTEGER, PARAMETER :: KU=3!358 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0   ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp), ALLOCATABLE :: d(:,:),a(:),b(:),c(:),s(:,:),dd(:,:),z(:,:),zz(:,:),a_short(:) ! a_short truncated a() for dgtsv    
@@ -20,12 +20,12 @@
 !   only runs tridiagonal routines dctsv.f90, dgtsv.f90 or thomas.f90 if KU=1
 !   only runs non-periodic lapack routines dgbsv and/or dgtsv if KL > 0 (and in fact KL=KU)   
    
-    allocate(AB(2*KU+1,n),CD(2*KL+KU+1,n),d(n,2),a(n),b(n),c(n),s(n,2),dd(n,2),z(n,2),zz(n,2),a_short(n-1),ipiv(n))
+    allocate(AB(2*KU+1,n),CD(2*KL+KU+1,n),d(n,4),a(n),b(n),c(n),s(n,4),dd(n,4),z(n,4),zz(n,4),a_short(n-1),ipiv(n))
 
     AB=0
     CD=0
     p=mod(N,2*KU)
-    write(*,*) 'p,KU: ',p,KU
+    write(*,*) 'p,KU,(N-p)/2KU: ',p,KU,(n-p)/(2*KU)
 
     do i=-KU,KU                                ! generate AB in band-cyclic format
      do j=1,n
@@ -59,10 +59,13 @@
       s(i,2)=i**2 
      end do
     endif  
-    
+
+!  Reverse solution vectors for alternate solutions
+    s(1:n,3:4)=s(1:n,1:2)
+    s(1:n,3:4) = s( size(s,1):1:-1,3:4)    
     dd=multiply(AB,s)                           ! RHS vectors
     d=dd
-            
+
     IF (KU == 1) then                           ! store tridiagonal matrices in vector format
     a=AB(1,:)
     b=AB(2,:)
@@ -73,7 +76,7 @@
 
     write(*,*) 'Using dctsv.f90, O(n)'    
     time_start=omp_get_wtime()                  ! have to use this to get actual time with omp
-    call DCTSV( n, 2, a, b, c, d, n, INFO )     ! overwrites d into solution
+    call DCTSV( n, 4, a, b, c, d, n, INFO )     ! overwrites d into solution
     time_end=omp_get_wtime()    
     write(*,*) 'time: ',time_end-time_start
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
@@ -86,7 +89,7 @@
       d=dd
       write(*,*) 'Using dgtsv, O(n)'           
       time_start=omp_get_wtime()
-      call DGTSV( n, 2, a_short, b, c, d, n, INFO )     ! overwrites d into solution
+      call DGTSV( n, 4, a_short, b, c, d, n, INFO )     ! overwrites d into solution
       time_end=omp_get_wtime()   
       write(*,*) 'time: ',time_end-time_start
       write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
@@ -100,7 +103,7 @@
       d=dd 
       write(*,*) 'Using thomas, O(n)'        
       time_start=omp_get_wtime()
-      call thomas(a,b,c,d,z,n,2)                        ! overwrites b and d, output is z           
+      call thomas(a,b,c,d,z,n,4)                        ! overwrites b and d, output is z           
       time_end=omp_get_wtime()    
       write(*,*) 'time: ',time_end-time_start
       write(*,*) 'solution error',dot_product((s(:,1)-z(:,1)),(s(:,1)-z(:,1))) 
@@ -112,68 +115,92 @@
     ENDIF
 
     d=dd
-    write(*,*) 'Using dcbsv.f90, O(n)'
-    time_start=omp_get_wtime()
-    call DCBSV( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
-    time_end=omp_get_wtime()    
-    write(*,*) 'time: ',time_end-time_start
-    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
-    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
-    z=multiply(AB,s(:,:))
-    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1)) 
-    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))
-    write(*,*) ' '
-    
-    d=dd
     write(*,*) 'Using dcbsv_f.f90, O(n)'
     time_start=omp_get_wtime()
-    call DCBSV_F( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+    call DCBSV_F( N, KU, 4, AB, 2*KU+1, d, N, INFO )      ! overwrites d
     time_end=omp_get_wtime()    
     write(*,*) 'time: ',time_end-time_start
-    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
-    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
-    z=multiply(AB,s(:,:))
-    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1)) 
-    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1)))/dot_product(s(:,1),s(:,1)) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
+    write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
+    write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))
+    z=multiply(AB,d(:,:))
+    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
+    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
+    write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
+    write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
     write(*,*) ' '
-    
+   
     d=dd
     write(*,*) 'Using dcbsv_r.f90, O(n)'
     time_start=omp_get_wtime()
-    call DCBSV_R( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+    call DCBSV_R( N, KU, 4, AB, 2*KU+1, d, N, INFO )      ! overwrites d
     time_end=omp_get_wtime()    
     write(*,*) 'time: ',time_end-time_start
-    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
-    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
-    z=multiply(AB,s(:,:))
-    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1)) 
-    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1)))/dot_product(s(:,1),s(:,1)) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
+    write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
+    write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))
+    z=multiply(AB,d(:,:))
+    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
+    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
+    write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
+    write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
     write(*,*) ' '
     
-    
-    
-!    zz=d    ! save the solution
-!    d=z-dd  !RHS error
-!    write(*,*) 'iterative step'
-!    time_start=omp_get_wtime()
-!    call DCBSV( N, KU, 2, AB, 2*KU+1, d, N, INFO )      ! overwrites dd
-!    time_end=omp_get_wtime()    
-!    write(*,*) 'time: ',time_end-time_start 
-!    z=zz-d
-!    write(*,*) 'solution error',dot_product((s(:,1)-z(:,1)),(s(:,1)-z(:,1))) 
-!    write(*,*) 'solution error',dot_product((s(:,2)-z(:,2)),(s(:,2)-z(:,2))) 
-    
+     d=dd
+    write(*,*) 'Using dcbsv.f90, O(n)'
+    time_start=omp_get_wtime()
+    call DCBSV( N, KU, 4, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+    time_end=omp_get_wtime()    
+    write(*,*) 'time: ',time_end-time_start
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1)))/dot_product(s(:,1),s(:,1)) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
+    write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
+    write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))
+    z=multiply(AB,d(:,:))
+    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
+    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
+    write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
+    write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
+    write(*,*) ' '   
+
+     d=dd
+    write(*,*) 'Using dcbsv4.f90, O(n)'
+    time_start=omp_get_wtime()
+    call DCBSV_4( N, KU, 4, AB, 2*KU+1, d, N, INFO )      ! overwrites d
+    time_end=omp_get_wtime()    
+    write(*,*) 'time: ',time_end-time_start
+    write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1)))/dot_product(s(:,1),s(:,1)) 
+    write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
+    write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
+    write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))
+    z=multiply(AB,d(:,:))
+    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
+    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
+    write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
+    write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
+    write(*,*) ' ' 
+      
            
 !    LAPACK routine for non-cyclic system
      if (KL > 0) then    
       d=dd  
       write(*,*) 'Using dgbsv, O(n)'    
       time_start=omp_get_wtime()          
-      call dgbsv( N, KL, KU, 2, CD, 2*KL+KU+1, IPIV, d, N, INFO ) ! overwrites d into solution
+      call dgbsv( N, KL, KU, 4, CD, 2*KL+KU+1, IPIV, d, N, INFO ) ! overwrites d into solution
       time_end=omp_get_wtime()    
       write(*,*) 'time: ',time_end-time_start
-      write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
-      write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
+      write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1)))/dot_product(s(:,1),s(:,1)) 
+      write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
+      write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
+      write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))
+      z=multiply(AB,d(:,:))
+      write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
+      write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
+      write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
+      write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
+      write(*,*) ' '
      endif
           
      deallocate(AB,CD,d,a,b,c,s,dd,z,a_short,ipiv)

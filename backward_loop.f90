@@ -26,9 +26,7 @@
 
 !! BACKWARD       
 !  ALL BUT THE LAST EQUATION, GENERATE UDR & UER  ! (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
-   jj=(N-p)/(2*KU)+1  !index of number of arrays   
-    do j=(N-p)/2,L+KU,-KU ! j not used; just a counter      
-    jj=jj-1    
+    do jj=(N-p)/(2*KU),L+1,-1     
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UDR(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
     A=Cj(:,:,jj)+AA
 !    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UDR(:,:,jj+1))        
@@ -52,7 +50,7 @@
     end do    
     endif  
    end do
-   LL=jj
+   LL=jj+1
    
   end subroutine backward_loop
   

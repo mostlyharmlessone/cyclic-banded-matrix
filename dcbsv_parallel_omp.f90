@@ -4,7 +4,7 @@
    IMPLICIT NONE
 !   Copyright (c) 2021   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
-!   using an O(N/KU+KU)xKUxKU algorithm 
+!   using an O(N*KU) algorithm 
 
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision 
 
@@ -86,32 +86,24 @@
    REAL(wp),ALLOCATABLE :: UE(:,:,:)      ! ue is my vectors vj 
    REAL(wp),ALLOCATABLE :: UDR(:,:,:)     ! udr is my set of matrices Ajbar
    REAL(wp),ALLOCATABLE :: UER(:,:,:)     ! uer is my vectors vjbar 
-   REAL(wp),ALLOCATABLE :: A(:,:),AA(:,:),CC(:,:),EE(:,:) ! working copies
-   REAL(wp),ALLOCATABLE :: CCL(:,:),IDENT(:,:)
+   REAL(wp),ALLOCATABLE :: ACL(:,:),CCL(:,:)   !last equation working copies
+   REAL(wp),ALLOCATABLE :: CC(:,:),IDENT(:,:)   
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
    INTEGER, ALLOCATABLE :: ipiv(:)
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,L,LL,thread,allocstat
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,L1,L2,LL,thread,allocstat
     
    p=mod(N,2*KU)
-   L=(N-p)/4
+   L1=(N-p)/(4*KU)
 
-   allocate(Bj(2*KU,N/(2*KU)+1,NRHS),Cj(2*KU,2*KU,N/(2*KU)+1))
-   allocate(Pj(2*KU,2*KU,N/(2*KU)+1),Sj(2*KU,2*KU,N/(2*KU)+1))
-   allocate(UD(2*KU,2*KU,0:N/(4*KU)+1),UE(2*KU,0:N/(4*KU)+1,NRHS))
-   allocate(UDR(2*KU,2*KU,N/(4*KU):N/(2*KU)+1),UER(2*KU,N/(4*KU):N/(2*KU)+1,NRHS))
-   allocate(A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS))
-   allocate(CCL(2*KU,NRHS),IDENT(2*KU,2*KU),IPIV(2*KU),STAT=allocstat)
+   allocate(Bj(2*KU,(N-p)/(2*KU)+1,NRHS),Cj(2*KU,2*KU,(N-p)/(2*KU)+1))
+   allocate(Pj(2*KU,2*KU,(N-p)/(2*KU)+1),Sj(2*KU,2*KU,(N-p)/(2*KU)+1))
+   allocate(UD(2*KU,2*KU,0:L1+1),UE(2*KU,0:L1+1,NRHS))
+   allocate(UDR(2*KU,2*KU,L1:(N-p)/(2*KU)+1),UER(2*KU,L1:(N-p)/(2*KU)+1,NRHS))
+   allocate(IDENT(2*KU,2*KU),IPIV(4*KU),STAT=allocstat)   ! need IPIV(4*KU) not 2*KU for alternate last equation solver
    if (allocstat /=0) then
     write(*,*) 'Memory allocation failed'
     stop
    endif 
-   if (p /= 0) then
-    allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS),STAT=allocstat)
-    if (allocstat /=0) then
-     write(*,*) 'Memory allocation failed'
-     stop
-    endif    
-   endif
       
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
@@ -133,7 +125,7 @@
 !     end info handling
 !
 !  Initialize
-   ipiv=0;   Bj=0;   Cj=0;   Pj=0;   CCL=0;   EE=0;    Sj=0 
+   ipiv=0;   Bj=0;   Cj=0;   Pj=0;  Sj=0 
    UER=0;   UDR=0;   UE=0;   UD=0  
    jj=0  !index of number of arrays, replaced by loop invariant (j-1)/KU+1 below to enable parallelism
 
@@ -181,19 +173,23 @@
      end do 
    end do        
                
-!  FIRST EQUATION in reverse if p=0 V(N/(2*KU)=0 & A(N/(2*KU) = permuted identity
+!  FIRST EQUATION in reverse if p=0 V((N-p)/(2*KU)=0 & A((N-p)/(2*KU) = permuted identity
    if (p == 0) then
-!  already done above UER(:,N/(2*KU)+1,:)=0;    UDR(:,:,N/(2*KU)+1)=0
+!  already done above UER(:,(N-p)/(2*KU)+1,:)=0;    UDR(:,:,(N-p)/(2*KU)+1)=0
     do i=1,2*KU
      do k=1,2*KU
       if ( (ABS(k - i) - KU) == 0 ) then
-        UDR(i,k,N/(2*KU)+1)=1
+        UDR(i,k,(N-p)/(2*KU)+1)=1
       endif
      end do 
     end do
    else
-   
-!  if p /= 0 have to compute UD(:,:,N/(2*KU)+1), UE(:,N/(2*KU)+1,:)
+   allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS),STAT=allocstat)
+   if (allocstat /=0) then
+    write(*,*) 'Memory allocation failed'
+    stop
+   endif       
+!  if p /= 0 have to compute UD(:,:,(N-p)/(2*KU)+1), UE(:,(N-p)/(2*KU)+1,:)
 !  already done above UER(:,(N-p)/(2*KU)+1,:)=0;    UDR(:,:,(N-p)/(2*KU)+1)=0
      if (p < KU) then
 !    needs A0 in center 2(KU-p) in size
@@ -264,71 +260,62 @@
       end do
      end do
      endif          
-    endif  ! info =0                        
+    endif  ! info =0
+    deallocate (Cp,Sp,Bp,EEK)              
    endif ! p /=0
 
 !$OMP PARALLEL num_threads(2) PRIVATE(thread)
 !  separate iterative parts into subroutines so each thread can work in parallel
    thread = omp_get_thread_num()
    if (thread==0) then
-    call forward_loop(L, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1 , UD, UE, JJ)     
+    call forward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1, UD, UE, JJ)  ! size() only used for size    
    else
-    call backward_loop(L, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, N/(4*KU),N/(2*KU)+1,UDR, UER, LL)
+    call backward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, (N-p)/(4*KU),(N-p)/(2*KU)+1,UDR, UER, LL) !dimensions UDR L2,(N-p)/(2*KU)+1   
    endif
 !$OMP END PARALLEL
 
-   jj=LL  ! count forward is count backward + 1
-                     
-!  LAST EQUATIONS for both is at jj determined above when j=L    
-!  B(j)=Inverse[IDENT-matmul(udR(:,:,j),ud(:,:,j-1))][udR(:,:,j)*ue(j-1)+ueR(j)]
-!  [IDENT-matmul(udR(:,:,j),ud(:,:,j-1))]B(j)   = udR(:,:,j)*ue(j-1)+ueR(j)
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,udR(:,:,jj),2*KU,ud(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
-    A=IDENT-AA
-    do hh=1,NRHS
-     call DGEMV('N',2*KU,2*KU,1.0_wp,udR(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1)
-     CCL(:,hh)=CC(:,hh)+ueR(:,jj,hh)
-    end do
-!    A=IDENT-matmul(udR(:,:,jj),ud(:,:,jj-1))
-!    CCL(:,1:NRHS)=matmul(udR(:,:,jj),ue(:,jj-1,1:NRHS))+ueR(:,jj,1:NRHS)
-    call DGESV(2*KU, NRHS , A, 2*KU, IPIV, CCL(:,1:NRHS), 2*KU, INFO ) ! overwrites CCL 
-!    call GaussJordan( 2*KU, NRHS, A ,2*KU, CCL(:,1:NRHS), 2*KU, INFO )  ! overwrites CCL       
-    if (info /= 0) then        
-     CALL XERBLA( 'DGESV/DCBSV ', INFO )
-!     RETURN
-    else              
-      Bj(:,jj,1:NRHS)=CCL(:,1:NRHS)   ! write Bj with RHS                                        
-    endif
+write(*,*) 'ud',ud(:,:,jj-1)
+write(*,*) 'udr',udr(:,:,jj)
 
-!  B(j-1)=Inverse[IDENT-matmul(ud(:,:,j-1),udR(:,:,j))][ud(:,:,j-1)*ueR(j)+ue(j-1)]
-!  [IDENT-matmul(ud(:,:,j-1),udR(:,:,j))]B(j-1) = ud(:,:,j-1)*ueR(j)+ue(j-1)
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,ud(:,:,jj-1),2*KU,udR(:,:,jj),2*KU,0.0_wp,AA,2*KU)
-    A=IDENT-AA
-    do hh=1,NRHS
-     call DGEMV('N',2*KU,2*KU,1.0_wp,ud(:,:,jj-1),2*KU,UER(:,jj,hh),1,0.0_wp,CC(:,hh),1)
-     CCL(:,hh)=CC(:,hh)+ue(:,jj-1,hh)
-    end do
-!    A=IDENT-matmul(ud(:,:,jj-1),udR(:,:,jj))
-!    CCL(:,1:NRHS)=matmul(ud(:,:,jj-1),ueR(:,jj,1:NRHS))+ue(:,jj-1,1:NRHS)
-    call DGESV(2*KU, NRHS , A, 2*KU, IPIV, CCL(:,1:NRHS), 2*KU, INFO ) ! overwrites CCL 
-!    call GaussJordan( 2*KU, NRHS, A ,2*KU, CCL(:,1:NRHS), 2*KU, INFO )  ! overwrites CCL       
+   jj=LL  ! count forward is count backward + 1
+   deallocate(Cj,Pj,Sj)
+!  LAST EQUATIONS for both is at jj determined above when j=L   
+   allocate(CC(2*KU,NRHS))
+
+   allocate(ACL(4*KU,4*KU),CCL(4*KU,NRHS))
+   ACL=0; CCL=0
+   ACL(1:2*KU,1:2*KU)=udR(:,:,JJ)
+   ACL(1:2*KU,2*KU+1:4*KU)=-IDENT
+   ACL(2*KU+1:4*KU,1:2*KU)=IDENT
+   ACL(2*KU+1:4*KU,2*KU+1:4*KU)=-ud(:,:,JJ-1)
+
+   CCL(1:2*KU,1:NRHS)=-uER(:,JJ,1:NRHS)        !ue, ueR are vectors v 
+   CCL(2*KU+1:4*KU,1:NRHS)=uE(:,JJ-1,1:NRHS)
+
+    call DGESV(4*KU, NRHS , ACL, 4*KU, IPIV, CCL(:,1:NRHS), 4*KU, INFO ) ! overwrites CCL 
+!    call GaussJordan( 4*KU, NRHS, ACL ,4*KU, CCL(:,1:NRHS), 4*KU, INFO )  ! overwrites CCL
+
     if (info /= 0) then        
      CALL XERBLA( 'DGESV/DCBSV ', INFO )
 !     RETURN
     else              
-      Bj(:,jj-1,1:NRHS)=CCL(:,1:NRHS)   ! write Bj-1 with RHS                                         
-    endif
+      Bj(:,JJ-1,1:NRHS)=CCL(1:2*KU,1:NRHS)   ! write Bj-1 with RHS z jj-1
+      Bj(:,JJ,1:NRHS)=CCL(2*KU+1:4*KU,1:NRHS)   ! write Bj with RHS z hat j                                     
+    endif     
+    
+   deallocate(ACL,CCL)
   
 !   BACKSUBSTITUTION z(j-1)=UE(j-1)+UD(:,:,j-1)*z(j) 
     do jj=LL-1,2,-1
      call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
      Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
-!      Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))
+!     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))
     end do
 !   BACKSUBSTITUTION z(j+1)=UER(j+1)+UDR(:,:,j+1)*z(j) 
     do jj=LL,(N-p)/(2*KU)
      call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UDR(:,:,jj+1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
      Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+CC(:,1:NRHS)
-!      Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+matmul(UDR(:,:,jj+1),Bj(:,jj,1:NRHS))
+!     Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+matmul(UDR(:,:,jj+1),Bj(:,jj,1:NRHS))
     end do  
 
 !   overwrite RHS with solution Bj, direction irrelevant    
@@ -345,11 +332,8 @@
      end do        
     end do  ! end kk
 
-   deallocate (Bj,Cj,Pj,Sj,UD,UE,UDR,UER)
-   deallocate(A,AA,CC,EE,CCL,IDENT,IPIV)
-   if (p /= 0) then
-    deallocate (Cp,Sp,Bp,EEK)
-   endif
+   deallocate (Bj,UD,UE,UDR,UER)
+   deallocate(CC,IDENT,IPIV)
         
   END SUBROUTINE dcbsv
   
