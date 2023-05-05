@@ -61,4 +61,64 @@ function multiply(AB,s) result (z)
    end do
  end function
 
+ ! Rotates columns of a matrix
+
+ function RotateColumns(A,k) result(B)
+ implicit none
+ INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+ REAL(wp) :: A(:,:)
+ REAL(wp) :: B(size(A,1),size(A,2))
+ INTEGER :: k
+  k = mod(k,size(A,1))
+  B = A(size(A,1):1:-1,1:size(A,2))
+  B(1:size(A,1)-k,1:size(A,2)) = B(size(A,1)-k:1:-1,1:size(A,2))
+  B(size(A,1)-k+1:size(A,1),1:size(A,2)) = B(size(A,1):size(A,1)-k+1:-1,1:size(A,2))
+ end function 
+
+ function ReverseColumns(A,k) result(B)
+ implicit none
+ INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+ REAL(wp) :: A(:,:)
+ REAL(wp) :: B(size(A,1),size(A,2))
+ INTEGER :: k
+
+write(*,*) 'wtf',k,size(A,1),mod(k,size(A,1))
+
+  k = mod(k,size(A,1))
+
+write(*,*) 'wtf',k
+
+  B = A(size(A,1):1:-1,1:size(A,2))
+
+
+
+
+ end function 
+
+ ! Rotates rows of a matrix
+
+ function RotateRows(A,k) result(B)
+ implicit none
+ INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+ REAL(wp) :: A(:,:)
+ REAL(wp) :: B(size(A,1),size(A,2))
+ INTEGER :: k
+  k = mod(k,size(A,2))
+  B = A(1:size(A,1),size(A,2):1:-1)
+  B(1:size(A,1),1:size(A,2)-k) = B(1:size(A,1),size(A,2)-k:1:-1)
+  B(1:size(A,1),size(A,2)-k+1:size(A,2)) = B(1:size(A,1),size(A,2):size(A,2)-k+1:-1)
+ end function
+
+ ! Rotates rows of a matrix
+
+ function ReverseRows(A,k) result(B)
+ implicit none
+ INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+ REAL(wp) :: A(:,:)
+ REAL(wp) :: B(size(A,1),size(A,2))
+ INTEGER :: k
+  k = mod(k,size(A,2))
+  B = A(1:size(A,1),size(A,2):1:-1)
+ end function
+
 end module
