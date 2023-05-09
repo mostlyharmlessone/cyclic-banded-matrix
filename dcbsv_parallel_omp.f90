@@ -90,7 +90,7 @@
    REAL(wp),ALLOCATABLE :: CC(:,:),IDENT(:,:)   
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
    INTEGER, ALLOCATABLE :: ipiv(:)
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,L1,L2,LL,thread,allocstat
+   INTEGER ::  i,j,k,kk,hh,p,ii,jj,L1,LL,thread,allocstat
     
    p=mod(N,2*KU)
    L1=(N-p)/(4*KU)
@@ -268,9 +268,9 @@
 !  separate iterative parts into subroutines so each thread can work in parallel
    thread = omp_get_thread_num()
    if (thread==0) then
-    call forward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, size(UD,3)-1, UD, UE, JJ)  ! size() only used for size    
+    call forward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1+1, UD, UE, JJ) !size(UD,3)-1 == L1+1 =(N-p)/(4*KU)+1   
    else
-    call backward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, (N-p)/(4*KU),(N-p)/(2*KU)+1,UDR, UER, LL) !dimensions UDR L2,(N-p)/(2*KU)+1   
+    call backward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1, size(Bj,2),UDR, UER, LL) !dimensions UDR L1,size(Bj,2)=(N-p)/(2*KU)+1   
    endif
 !$OMP END PARALLEL
 
