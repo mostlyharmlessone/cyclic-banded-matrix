@@ -20,7 +20,23 @@ function multiply(AB,s) result (z)
       end do
    end do
  end function
-  
+ 
+! makes an AB matrix with bandwidth KU from a square matrix Aij
+ function ABConvert(KU,A) result (AB) 
+ implicit none
+ INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+ REAL (wp) :: A(:,:)
+ REAL(wp) :: AB(2*KU+1,size(A,2))
+ INTEGER :: KU,i,j,m,n
+  n=size(A,2)
+  m=2*KU+1
+   do j=1,n   
+    do i=1,m
+     AB(i,j)=a(mod(N+i+j+KU-m-1,n),j)
+    end do
+   end do
+ end function
+ 
 ! CD=ColumnConvert(AB)  makes a LAPACK band matrix compatible with dgbsv and KU=KL out of periodic AB matrix
   
  function ColumnConvert(AB) result (CD)

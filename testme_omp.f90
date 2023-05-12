@@ -1,7 +1,7 @@
 
     program testme_omp
     USE OMP_LIB
-    use AB_matrix_fct, only : multiply, RowConvert, ColumnConvert
+    use AB_matrix_fct, only : multiply, RowConvert, ColumnConvert, ABConvert
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
@@ -33,8 +33,11 @@
       if (i == 0) then
        AB(i+KU+1,j)=AB(i+KU+1,j)+300           ! emphasize diagonal dominance
       end if
+
+      AB(i+KU+1,j)=KU*KU-I*I+2+j
+
       if (i >= KU) then
-       AB(i+KU+1,j)=AB(i+KU+1,j)+1.5           ! asymmetry
+       AB(i+KU+1,j)=AB(i+KU+1,j)+1!.5           ! asymmetry
       end if   
       if (KL == KU) then
       if ((i+j-1) /= mod(N+i+j-1,N)) then
@@ -64,6 +67,7 @@
     s(1:n,3:4)=s(1:n,1:2)
     s(1:n,3:4) = s( size(s,1):1:-1,3:4)    
     dd=multiply(AB,s)                           ! RHS vectors
+
     d=dd
 
     IF (KU == 1) then                           ! store tridiagonal matrices in vector format
