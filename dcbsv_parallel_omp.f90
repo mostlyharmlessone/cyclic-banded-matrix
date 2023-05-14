@@ -268,18 +268,24 @@
 !  separate iterative parts into subroutines so each thread can work in parallel
    thread = omp_get_thread_num()
    if (thread==0) then
-    call forward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1+1, UD, UE, JJ) !size(UD,3)-1 == L1+1 =(N-p)/(4*KU)+1   
+    call forward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1+1, UD, UE, JJ) !size(UD,3)-1 == L1+1 =(N-p)/(4*KU)+1     
    else
     call backward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1, size(Bj,2),UDR, UER, LL) !dimensions UDR L1,size(Bj,2)=(N-p)/(2*KU)+1   
    endif
 !$OMP END PARALLEL
 
-write(*,*) 'ud',ud(:,:,jj-1)
-write(*,*) 'udr',udr(:,:,jj)
 
-   jj=LL  ! count forward is count backward + 1
+write(*,*) 'jj,ll',jj,ll
+jj=ll
+write(*,*) ud(:,:,JJ-1)
+write(*,*) ' '
+write(*,*) udr(:,:,JJ)
+write(*,*) ' '
+
    deallocate(Cj,Pj,Sj)
-!  LAST EQUATIONS for both is at jj determined above when j=L   
+!  LAST EQUATIONS for both is at jj determined above when j=L  
+   jj=LL  ! count forward is count backward + 1
+   
    allocate(CC(2*KU,NRHS))
 
    allocate(ACL(4*KU,4*KU),CCL(4*KU,NRHS))
