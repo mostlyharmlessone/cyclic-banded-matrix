@@ -269,13 +269,15 @@
    thread = omp_get_thread_num()
    if (thread==0) then
     call forward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1+1, UD, UE, JJ) !size(UD,3)-1 == L1+1 =(N-p)/(4*KU)+1     
+write(*,*) 'thread,jj',thread,JJ
    else
     call backward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1, size(Bj,2),UDR, UER, LL) !dimensions UDR L1,size(Bj,2)=(N-p)/(2*KU)+1   
+write(*,*) 'thread,ll',thread,LL
    endif
 !$OMP END PARALLEL
 
 
-write(*,*) 'jj,ll',jj,ll
+write(*,*) 'L1,jj,ll',L1,jj,ll
 jj=ll
 write(*,*) ud(:,:,JJ-1)
 write(*,*) ' '
