@@ -261,13 +261,20 @@
     allocate(A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),CCL(2*KU,NRHS))
           
 !  LAST EQUATION in reverse jj=1  so BjL=Bj(:,1,1:NRHS); CjL=Cj(:,:,1)+matmul(Sj(:,:,1),ud(:,:,0))
-    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Pj1,2*KU,UE(:,2,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)       
-    CCL(:,1:NRHS)=Bj(:,1,1:NRHS)-CC(:,1:NRHS)
-!    CCL(:,1:NRHS)=Bj(:,1,1:NRHS)-matmul(Pj1,UE(:,2,1:NRHS))    
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj1,2*KU,UD(:,:,2),2*KU,0.0_wp,A,2*KU)
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj1,2*KU,UD(:,:,0),2*KU,0.0_wp,AA,2*KU)    
-    A=Cj1+AA+A
-!    A=Cj1+matmul(Sj1,ud(:,:,0))+matmul(Pj1,UD(:,:,2))   
+!  DGEMM 269 & 290 argument B (UE and B)
+!  https://www.cita.utoronto.ca/~merz/intel_f10b/main_for/mergedProjects/optaps_for/fortran/optaps_prg_arrs_f.htm
+!  assumed-shape array or array pointer to an explicit-shape array can slow run-time performance. 
+!  This is because the compiler needs to create an array temporary for the entire array. 
+!  The array temporary is created because the passed array may not be contiguous 
+!  and the receiving (explicit-shape) array requires a contiguous array.
+!    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,Pj1,2*KU,UE(:,2,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)       
+!    CCL(:,1:NRHS)=Bj(:,1,1:NRHS)-CC(:,1:NRHS)
+    CCL(:,1:NRHS)=Bj(:,1,1:NRHS)-matmul(Pj1,UE(:,2,1:NRHS))
+!   These DGEMM calls are ok    
+!    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj1,2*KU,UD(:,:,2),2*KU,0.0_wp,A,2*KU)
+!    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj1,2*KU,UD(:,:,0),2*KU,0.0_wp,AA,2*KU)    
+!    A=Cj1+AA+A
+    A=Cj1+matmul(Sj1,ud(:,:,0))+matmul(Pj1,UD(:,:,2))   
     call DGESV(2*KU, NRHS , A, 2*KU, IPIV, CCL(:,1:NRHS), 2*KU, INFO ) ! overwrites CCL 
 !    call GaussJordan( 2*KU, NRHS, A ,2*KU, CCL(:,1:NRHS), 2*KU, INFO )  ! overwrites CCL       
     if (info /= 0) then        
@@ -281,9 +288,9 @@
         
 !   BACKSUBSTITUTION z(j+1)=UE(j+1)+UD(:,:,j+1)*z(j) 
     do jj=1,(N-p)/(2*KU)
-     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj+1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
-     Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+CC(:,1:NRHS)
-!      Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+matmul(UD(:,:,jj+1),Bj(:,jj,1:NRHS))
+!     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj+1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
+!     Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+CC(:,1:NRHS)
+      Bj(:,jj+1,1:NRHS)=UE(:,jj+1,1:NRHS)+matmul(UD(:,:,jj+1),Bj(:,jj,1:NRHS))
     end do        
     
   do kk=1,NRHS         

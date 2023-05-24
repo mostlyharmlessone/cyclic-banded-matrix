@@ -88,7 +88,7 @@
    REAL(wp),ALLOCATABLE :: IDENTS(:,:),BL(:,:)
    REAL(wp),ALLOCATABLE :: AAL(:,:),CCL(:,:),SjL(:,:)
    Real(wp),ALLOCATABLE :: D(:,:)   
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,LL,allocstat
+   INTEGER ::  i,j,k,kk,p,ii,jj,LL,allocstat
    INTEGER, ALLOCATABLE :: ipiv(:)
           
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
@@ -217,10 +217,10 @@
     do i=1,2*KU+p
       BjL(i,1:NRHS)=B((N-p)/2-KU+i,1:NRHS)   ! write BjL with RHS
     end do
-    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,SjL,2*KU,UE(:,jj-1,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)
-    call DGEMM('N','N',2*KU+p,NRHS,2*KU,1.0_wp,IDENTS,2*KU+p,CC(:,1:NRHS),2*KU,0.0_wp,CCL(:,1:NRHS),2*KU+p)        
-    CCL(:,1:NRHS)=BjL(:,1:NRHS)-CCL(:,1:NRHS)
-!    CCL(:,1:NRHS)=BjL(:,1:NRHS)-matmul(IDENTS,matmul(SjL,UE(:,jj-1,1:NRHS)))    
+!    call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,SjL,2*KU,UE(:,jj-1,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)
+!    call DGEMM('N','N',2*KU+p,NRHS,2*KU,1.0_wp,IDENTS,2*KU+p,CC(:,1:NRHS),2*KU,0.0_wp,CCL(:,1:NRHS),2*KU+p)        
+!    CCL(:,1:NRHS)=BjL(:,1:NRHS)-CCL(:,1:NRHS)
+    CCL(:,1:NRHS)=BjL(:,1:NRHS)-matmul(IDENTS,matmul(SjL,UE(:,jj-1,1:NRHS)))    
     call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,SjL,2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
     call DGEMM('N','T',2*KU,2*KU+p,2*KU,1.0_wp,AA,2*KU,IDENTS,2*KU+p,0.0_wp,BL,2*KU)
     call DGEMM('N','N',2*KU+p,2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,BL,2*KU,0.0_wp,AAL,2*KU+p)
@@ -247,9 +247,9 @@
     
 !   BACKSUBSTITUTION z(j-1)=UE(j-1)+UD(:,:,j-1)*z(j) 
     do jj=(N-p)/(2*KU),2,-1
-     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
-     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
-!      Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))
+!     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
+!     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
+     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))
     end do
      
   do kk=1,NRHS         

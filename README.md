@@ -52,6 +52,11 @@ gfortran -fopenmp -O3 testme_omp.f90 dcbsv_parallel_omp.f90 dcbsv_forward.f90 dc
 
 ./a.out
 
+Alternatively, 
+  cmake ./    
+  make   
+  ./testme_cyclic 
+  ./testme_cyclic_omp
 ```
 
 ## Contributing

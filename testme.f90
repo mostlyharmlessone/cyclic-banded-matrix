@@ -1,16 +1,18 @@
     program testme
-    
+    USE lapackinterface 
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
     INTEGER, PARAMETER :: n=1501           ! size of problem
     INTEGER, PARAMETER :: KU=3            ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0            ! for testing vs lapack version only
                                            ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
-    REAL(wp) :: d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2)
+    REAL(wp), ALLOCATABLE :: d(:,:),a(:),b(:),c(:),aij(:,:),bij(:,:),cij(:,:),s(:,:),z(:,:)
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: CD(2*KL+KU+1,n)                  ! CD(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: a_short(n-1)                     ! truncated a() for dgtsv
     INTEGER :: i,j,k,INFO,ipiv(n)
+
+    allocate (d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2))
 !   Copyright (c) 2021   Anthony M de Beus
     AB=0
 
