@@ -175,6 +175,11 @@
     call DCBSV_4( N, KU, 4, AB, 2*KU+1, d, N, INFO )      ! overwrites d
     time_end=omp_get_wtime()    
     write(*,*) 'time: ',time_end-time_start
+
+    write(*,*) 'solution ',s(:,1)
+    write(*,*) ' '
+    write(*,*) 'solution ',d(:,1)
+
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1)))/dot_product(s(:,1),s(:,1)) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
     write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 

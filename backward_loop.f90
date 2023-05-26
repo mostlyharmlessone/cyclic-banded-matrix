@@ -7,7 +7,7 @@
 
 !  .. Scalar Arguments ..
    Integer, Intent(IN) ::  L, LB, LR, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
-                                                       ! LU+1=size(UD,3)=size(UE,2) index LR arrays
+                                                       ! LU+1=size(UD,3)=size(UE,2) index LR arrays ie. LR=0 for dcbsv_reverse
    INTEGER, INTENT(OUT) :: INFO,LL                     ! LL is number of steps
 !  .. Array Arguments ..
 
