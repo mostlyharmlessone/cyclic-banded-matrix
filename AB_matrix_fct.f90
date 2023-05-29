@@ -104,7 +104,7 @@ function multiply(AB,s) result (z)
  INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
  REAL(wp) :: A(:,:)
  REAL(wp) :: B(size(A,1),size(A,2)),C(size(A,1)/4,size(A,2))
-  B = A(size(A,1):1:-1,1:size(A,2)) 
+  B = A(size(A,1):1:-1,1:size(A,2))
   C(1:(size(A,1)/4),size(A,2)) = B(1:(size(A,1)/4),size(A,2))
   B(1:(size(A,1)/4),size(A,2)) = B((size(A,1)/4+1):size(A,1)/2,size(A,2))
   B((size(A,1)/4+1):size(A,1)/2,size(A,2)) = C(1:(size(A,1)/4),size(A,2))
