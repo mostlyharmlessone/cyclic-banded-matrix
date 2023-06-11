@@ -11,11 +11,10 @@ set (CMAKE_Fortran_COMPILER "gfortran")
 # should read again how to manage compiler flags with Cmake
 if(CMAKE_Fortran_COMPILER MATCHES "gfortran")
     set(FC "gfortran")
-    set(dialect "-ffree-form -std=f2008")
-#     set(dialect "-std=gnu")
-     set(bounds "-fbounds-check")
+    set(dialect "-ffree-form -std=f2008 -fexternal-blas")
+     set(bounds "-Wall -Wextra -Wimplicit-interface -fcheck=all -fbacktrace -fbounds-check -g")
      set(omp "-fopenmp")
-     set(NaN "-Wall -Wextra -Wimplicit-interface -g -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow -finit-real=snan -finit-integer=-99999999")
+     set(NaN "-ffpe-trap=invalid,zero,overflow -finit-real=snan -finit-integer=-99999999")
 #  profiling with gprof 
  #     set(-pg)    
 #  src profiling with gcov -a -b xxx.f90
@@ -33,7 +32,7 @@ endif()
 if(CMAKE_Fortran_COMPILER MATCHES "nvfortran")
     set(FC "nvfortran")
     set(dialect "-Mfreeform -Mdclchk -Mstandard -Mallocatable=03")
-    set(bounds "-C")
+    set(bounds "-Mbounds -g")
     set(omp "-mp")    
 endif()
 
