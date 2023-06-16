@@ -99,7 +99,11 @@
       B(index_row,1:NRHS)=B(index_col,1:NRHS)
       B(index_col,1:NRHS)=swap2(1:NRHS)    
     endif
-    pivot=A(index_col,index_col) 
+    pivot=A(index_col,index_col)
+    if (pivot .EQ. 0) then
+     write(*,*) 'GaussJordan reports zero pivot'   
+     RETURN
+    endif
     A(index_col,index_col)=1
     A(index_col,1:N)=A(index_col,1:N)/pivot       
     B(index_col,1:NRHS)=B(index_col,1:NRHS)/pivot
