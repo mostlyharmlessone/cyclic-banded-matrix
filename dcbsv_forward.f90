@@ -90,6 +90,28 @@
    Real(wp),ALLOCATABLE :: D(:,:)   
    INTEGER ::  i,j,k,kk,p,ii,jj,LL,allocstat
    INTEGER, ALLOCATABLE :: ipiv(:)
+   
+   INTERFACE
+    subroutine forward_loop(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
+      INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+      Integer, Intent(IN) ::  L, LB, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
+                                                 ! LU+1=size(UD,3)=size(UE,2) index 0 arrays
+      INTEGER, INTENT(OUT) :: INFO,LL                 ! LL is number of steps   
+      REAL(wp),INTENT(IN) :: Bj(2*KU,LB,NRHS)  
+      REAL(wp),INTENT(IN) :: Cj(2*KU,2*KU,LB)
+      REAL(wp),INTENT(IN) :: Pj(2*KU,2*KU,LB)
+      REAL(wp),INTENT(IN) :: Sj(2*KU,2*KU,LB)    
+      REAL(wp),INTENT(INOUT) :: UD(2*KU,2*KU,0:LU) ! ud is my set of matrices Aj                 
+      REAL(wp),INTENT(INOUT) :: UE(2*KU,0:LU,NRHS)      ! ue is my vectors vj   
+     end subroutine forward_loop
+     
+     SUBROUTINE GaussJordan( N, NRHS, A, LDA, B, LDB, INFO )
+      INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+      INTEGER,INTENT(IN)   :: LDA, LDB, N, NRHS
+      INTEGER, INTENT(OUT) :: INFO 
+      REAL(wp),INTENT(INOUT) ::  A( LDA, * ), B( LDB, * )
+     END SUBROUTINE GaussJordan      
+   END INTERFACE      
           
 !     INFO handling copied/modified from dgbsv.f *  -- LAPACK routine (version 3.1) --
 !     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..

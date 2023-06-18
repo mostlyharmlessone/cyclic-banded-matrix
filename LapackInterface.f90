@@ -1,6 +1,6 @@
       MODULE LapackInterface
       IMPLICIT NONE
-      
+!  -- interfaces for FORTRAN77 LAPACK to fortran 90+      
 !  -- suggested from http://www.siam.org/books/ot134 Numerical Computing with Modern Fortran Richard J.Hanson and Tim Hopkins SIAM 
 !  -- LAPACK driver routine (version 3.7.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -28,7 +28,14 @@
          INTEGER            IPIV( * )
          DOUBLE PRECISION   A( LDA, * ), B( LDB, * )
          END SUBROUTINE DGESV
-
+         
+         SUBROUTINE DGELS( TRANS, M, N, NRHS, A, LDA, B, LDB, WORK, LWORK, INFO )
+!     .. Scalar Arguments ..
+         CHARACTER          TRANS
+         INTEGER            INFO, LDA, LDB, LWORK, M, N, NRHS
+!     .. Array Arguments ..
+         DOUBLE PRECISION   A( LDA, * ), B( LDB, * ), WORK( * )
+         END SUBROUTINE DGELS
 
           SUBROUTINE DGETRF( M, N, A, LDA, IPIV, INFO )
 !     .. Scalar Arguments ..
@@ -60,6 +67,17 @@
           DOUBLE PRECISION   AB( ldab, * ), B( ldb, * )
           
           END SUBROUTINE DGBSV
+          
+          SUBROUTINE DGTSV( N, NRHS, DL, D, DU, B, LDB, INFO )
+
+!      .. Scalar Arguments ..
+          INTEGER            INFO, LDB, N, NRHS
+!      ..
+!      .. Array Arguments ..
+          DOUBLE PRECISION   B( LDB, * ), D( * ), DL( * ), DU( * )
+
+          END SUBROUTINE DGTSV
+                  
 
           SUBROUTINE DGETRI( N, A, LDA, IPIV, WORK, LWORK, INFO )
 !      .. Scalar Arguments ..
@@ -72,7 +90,7 @@
 
           SUBROUTINE XERBLA( SRNAME, INFO )
 !         .. Scalar Arguments ..
-          CHARACTER*6        SRNAME
+          CHARACTER(6)        SRNAME
           INTEGER            INFO
           END SUBROUTINE XERBLA  
 
@@ -92,8 +110,16 @@
           CHARACTER TRANS
 !         .. Array Arguments ..
           DOUBLE PRECISION A(LDA,*),X(*),Y(*) 
-          END SUBROUTINE DGEMV    
+          END SUBROUTINE DGEMV   
 
-        END INTERFACE
+          FUNCTION DNRM2(N,DX,INCX) RESULT(RES)
+          DOUBLE PRECISION RES
+!          .. Scalar Arguments ..
+          INTEGER  INCX,N
+!         .. Array Arguments ..
+          DOUBLE PRECISION DX(*)
+          END FUNCTION DNRM2
+
+        END INTERFACE    
 
       END MODULE LapackInterface

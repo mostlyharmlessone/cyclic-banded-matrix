@@ -12,6 +12,53 @@
     REAL(wp) :: a_short(n-1)                     ! truncated a() for dgtsv
     INTEGER :: i,j,k,INFO,ipiv(n)
 
+    INTERFACE  
+     SUBROUTINE thomas(a,b,c,d,z,n,k) 
+      INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+      INTEGER, INTENT(IN) :: n,k
+      REAL(wp), INTENT(INOUT) :: a(n),b(n),c(n),d(n,k)
+      REAL (wp), INTENT(OUT) :: z(n,k)    
+     END SUBROUTINE thomas
+     
+     SUBROUTINE GaussJordan( N, NRHS, A, LDA, B, LDB, INFO )
+      INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+      INTEGER,INTENT(IN)   :: LDA, LDB, N, NRHS
+      INTEGER, INTENT(OUT) :: INFO 
+      REAL(wp),INTENT(INOUT) ::  A( LDA, * ), B( LDB, * )
+     END SUBROUTINE GaussJordan           
+   
+     SUBROUTINE DCTSV( N, NRHS, DL, D, DU, B, LDB, INFO )   
+      INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision    
+!     .. Scalar Arguments ..
+      INTEGER, INTENT(IN) :: LDB, N, NRHS
+      INTEGER, INTENT(OUT) :: INFO 
+!     .. Array Arguments ..
+      REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * )  ! no output no LU factors
+      REAL(wp), INTENT(INOUT) :: B( LDB, * ) ! on entry RHS, on exit, solution
+     END SUBROUTINE DCTSV
+      
+     SUBROUTINE DCBSV_F( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
+       INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+!       .. Scalar Arguments ..
+       Integer, Intent(IN) ::  KU, LDAB, LDB, N, NRHS
+       INTEGER, INTENT(OUT) :: INFO
+!        .. Array Arguments ..
+       Real(wp), Intent(IN) :: AB( ldab, * )
+       Real(wp), Intent(INOUT) ::  B( ldb, * )
+     END SUBROUTINE DCBSV_F
+     
+     SUBROUTINE DCBSV_R( N, KU, NRHS, AB, LDAB, B, LDB, INFO ) 
+       INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+!       .. Scalar Arguments ..
+       Integer, Intent(IN) ::  KU, LDAB, LDB, N, NRHS
+       INTEGER, INTENT(OUT) :: INFO
+!        .. Array Arguments ..
+       Real(wp), Intent(IN) :: AB( ldab, * )
+       Real(wp), Intent(INOUT) ::  B( ldb, * )
+     END SUBROUTINE DCBSV_R                                 
+    END INTERFACE
+
+
     allocate (d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2))
 !   Copyright (c) 2021   Anthony M de Beus
     AB=0

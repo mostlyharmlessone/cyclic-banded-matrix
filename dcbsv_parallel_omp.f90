@@ -91,6 +91,43 @@
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
    INTEGER, ALLOCATABLE :: ipiv(:)
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,L1,LL,thread,allocstat
+   
+   INTERFACE
+    subroutine forward_loop(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
+      INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+      Integer, Intent(IN) ::  L, LB, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
+                                                 ! LU+1=size(UD,3)=size(UE,2) index 0 arrays
+      INTEGER, INTENT(OUT) :: INFO,LL                 ! LL is number of steps   
+      REAL(wp),INTENT(IN) :: Bj(2*KU,LB,NRHS)  
+      REAL(wp),INTENT(IN) :: Cj(2*KU,2*KU,LB)
+      REAL(wp),INTENT(IN) :: Pj(2*KU,2*KU,LB)
+      REAL(wp),INTENT(IN) :: Sj(2*KU,2*KU,LB)    
+      REAL(wp),INTENT(INOUT) :: UD(2*KU,2*KU,0:LU) ! ud is my set of matrices Aj                 
+      REAL(wp),INTENT(INOUT) :: UE(2*KU,0:LU,NRHS)      ! ue is my vectors vj   
+     end subroutine forward_loop
+        
+     subroutine backward_loop( L, N, KU, LB,Bj,Cj,Pj,Sj, NRHS, INFO, LR,LU,UDR, UER, LL)
+      INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+!  .. Scalar Arguments ..
+      Integer, Intent(IN) ::  L, LB, LR, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
+                                                       ! LU+1=size(UD,3)=size(UE,2) index LR arrays ie. LR=0 for dcbsv_reverse
+      INTEGER, INTENT(OUT) :: INFO,LL                     ! LL is number of steps
+!  .. Array Arguments ..
+      REAL(wp),INTENT(IN) :: Bj(2*KU,LB,NRHS)  
+      REAL(wp),INTENT(IN) :: Cj(2*KU,2*KU,LB)
+      REAL(wp),INTENT(IN) :: Pj(2*KU,2*KU,LB)
+      REAL(wp),INTENT(IN) :: Sj(2*KU,2*KU,LB)    
+      REAL(wp),INTENT(INOUT) :: UDR(2*KU,2*KU,LR:LU) ! ud is my set of matrices Aj                 
+      REAL(wp),INTENT(INOUT) :: UER(2*KU,LR:LU,NRHS)      ! ue is my vectors vj
+     end subroutine backward_loop
+     
+     SUBROUTINE GaussJordan( N, NRHS, A, LDA, B, LDB, INFO )
+      INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+      INTEGER,INTENT(IN)   :: LDA, LDB, N, NRHS
+      INTEGER, INTENT(OUT) :: INFO 
+      REAL(wp),INTENT(INOUT) ::  A( LDA, * ), B( LDB, * )
+     END SUBROUTINE GaussJordan      
+   END INTERFACE      
     
    p=mod(N,2*KU)
    L1=(N-p)/(4*KU)

@@ -18,7 +18,7 @@ subroutine forward_loop(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
                
 !  .. Work space ..
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
-   INTEGER ::  i,j,k,kk,hh,p,ii,jj,ipiv(2*KU)
+   INTEGER ::  hh,p,jj,ipiv(2*KU)
 
    p=mod(N,2*KU)
 

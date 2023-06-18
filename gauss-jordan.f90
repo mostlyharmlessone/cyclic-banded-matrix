@@ -1,4 +1,5 @@
   SUBROUTINE GaussJordan( N, NRHS, A, LDA, B, LDB, INFO )
+  USE LapackInterface
   IMPLICIT NONE
   
   INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision

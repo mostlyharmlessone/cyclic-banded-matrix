@@ -9,7 +9,7 @@ function multiply(AB,s) result (z)
  INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
  REAL (wp) :: AB(:,:),s(:,:) 
  REAL(wp) :: z(size(s,1),size(s,2))
- INTEGER :: i,j,k
+ INTEGER :: i,j
  INTEGER :: n, KU
    KU=(size(AB,1)-1)/2
    n=size(AB,2)

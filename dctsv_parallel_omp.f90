@@ -1,5 +1,6 @@
      SUBROUTINE DCTSV( N, NRHS, DL, D, DU, B, LDB, INFO )
-     USE OMP_LIB     
+     USE OMP_LIB
+     USE LapackInterface
      IMPLICIT NONE   
 !      PURPOSE solves the cyclic/periodic tridiagonal system, see LAPACK routine DGTSV for comparison
 !      Copyright (c) 2021   Anthony M de Beus
@@ -68,15 +69,24 @@
        REAL(wp) :: udR(2,2,N/4:N/2+1),ueR(2,N/4:N/2+1,NRHS),DET2  ! udR is my set of matrices Aj(bar) ueR is my vectors vj(bar)
        REAL(wp) :: ud(2,2,0:N/4+1),ue(2,0:N/4+1,NRHS),DET         !  ud is my set of matrices Aj ue is my vectors vj
 
-       INTEGER :: i,j,k,p,L,thread
+       INTEGER :: i,j,p,L,thread
 
-!      needed for f90+ calling of f77 routines
        INTERFACE
-          SUBROUTINE XERBLA( SRNAME, INFO )
-!         .. Scalar Arguments ..
-          CHARACTER*6        SRNAME          !CHARACTER(6)
-          INTEGER            INFO
-          END SUBROUTINE XERBLA      
+       subroutine forward_dctsv(N, NRHS, DL, D, DU, B, LDB, INFO, UD, UE)
+        INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+        INTEGER, INTENT(IN) :: LDB, N, NRHS
+        INTEGER, INTENT(OUT) :: INFO 
+        REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * ), B( LDB, * ) 
+        REAL(wp) :: ud(2,2,0:N/4+1),ue(2,0:N/4+1,NRHS)              
+       end subroutine forward_dctsv
+
+       subroutine backward_dctsv(N, NRHS, DL, D, DU, B, LDB, INFO, UDR, UER)
+        INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+        INTEGER, INTENT(IN) :: LDB, N, NRHS
+        INTEGER, INTENT(OUT) :: INFO 
+        REAL(wp), INTENT(IN) :: D( * ), DL( * ), DU( * ), B( LDB, * )
+        REAL(wp) :: udR(2,2,N/4:N/2+1),ueR(2,N/4:N/2+1,NRHS)       
+       end subroutine backward_dctsv     
        END INTERFACE
 
 !      INFO handling copied/modified from dgtsv.f *  -- LAPACK routine (version 3.1) --
@@ -216,6 +226,7 @@
 !     The two iterative loop routines follow     
 
        subroutine forward_dctsv(N, NRHS, DL, D, DU, B, LDB, INFO, UD, UE)
+       use lapackinterface
        IMPLICIT NONE   
 !      PURPOSE forward iterative loop
 !      Copyright (c) 2021   Anthony M de Beus
@@ -228,7 +239,7 @@
        REAL(wp) :: ud(2,2,0:N/4+1),ue(2,0:N/4+1,NRHS)
 !      ..
        REAL(wp) :: DET  !  ud is my set of matrices Aj ue is my vectors vj 
-       INTEGER :: i,j,p,L
+       INTEGER :: j,p,L
 
        p=mod(N,2)
        L=(N-p)/4
@@ -257,6 +268,7 @@
        end subroutine forward_dctsv
 
        subroutine backward_dctsv(N, NRHS, DL, D, DU, B, LDB, INFO, UDR, UER)
+       use lapackinterface
        IMPLICIT NONE   
 !      PURPOSE backward iterative loop
 !      Copyright (c) 2021   Anthony M de Beus
@@ -269,7 +281,7 @@
        REAL(wp) :: udR(2,2,N/4:N/2+1),ueR(2,N/4:N/2+1,NRHS) 
 !      ..
        REAL(wp) :: DET  !  ud is my set of matrices Aj ue is my vectors vj 
-       INTEGER :: i,j,p,L
+       INTEGER :: j,p,L
 
        p=mod(N,2)
        L=(N-p)/4
