@@ -108,11 +108,9 @@
         
      subroutine backward_loop( L, N, KU, LB,Bj,Cj,Pj,Sj, NRHS, INFO, LR,LU,UDR, UER, LL)
       INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-!  .. Scalar Arguments ..
       Integer, Intent(IN) ::  L, LB, LR, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
                                                        ! LU+1=size(UD,3)=size(UE,2) index LR arrays ie. LR=0 for dcbsv_reverse
       INTEGER, INTENT(OUT) :: INFO,LL                     ! LL is number of steps
-!  .. Array Arguments ..
       REAL(wp),INTENT(IN) :: Bj(2*KU,LB,NRHS)  
       REAL(wp),INTENT(IN) :: Cj(2*KU,2*KU,LB)
       REAL(wp),INTENT(IN) :: Pj(2*KU,2*KU,LB)

@@ -67,7 +67,7 @@
        INTERFACE
           SUBROUTINE XERBLA( SRNAME, INFO )
 !         .. Scalar Arguments ..
-          CHARACTER*6        SRNAME          !CHARACTER(6)
+          CHARACTER(6)        SRNAME          !obsolescent CHARACTER*6 in lapack code
           INTEGER            INFO
           END SUBROUTINE XERBLA      
        END INTERFACE

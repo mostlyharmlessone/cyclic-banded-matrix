@@ -37,7 +37,7 @@
 !  INFO    INFO is INTEGER
 !          = 0:  successful exit
 !          < 0:  if INFO = -i, the i-th argument had an illegal value
-!          > 0:  if INFO = i, U(i,i) is exactly zero so the solution could not be computed. 
+!          > 0:  if INFO = i, the solution cannot be computed
 
 !     .. Scalar Arguments ..
   INTEGER,INTENT(IN)   :: LDA, LDB, N, NRHS
@@ -102,6 +102,7 @@
     endif
     pivot=A(index_col,index_col)
     if (pivot .EQ. 0) then
+     info=99
      write(*,*) 'GaussJordan reports zero pivot'   
      RETURN
     endif

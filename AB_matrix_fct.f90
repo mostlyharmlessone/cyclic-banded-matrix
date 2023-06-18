@@ -25,9 +25,9 @@ function multiply(AB,s) result (z)
  function ABConvert(KU,A) result (AB) 
  implicit none
  INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+ INTEGER :: KU,i,j,m,n 
  REAL (wp) :: A(:,:)
  REAL(wp) :: AB(2*KU+1,size(A,2))
- INTEGER :: KU,i,j,m,n
   n=size(A,2)
   m=2*KU+1
    do j=1,n   

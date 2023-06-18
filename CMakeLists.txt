@@ -11,7 +11,7 @@ set (CMAKE_Fortran_COMPILER "gfortran")
 # should read again how to manage compiler flags with Cmake
 if(CMAKE_Fortran_COMPILER MATCHES "gfortran")
     set(FC "gfortran")
-    set(dialect "-ffree-form -std=f2008 -fexternal-blas")
+    set(dialect "-ffree-form -std=f2008 -fexternal-blas -fno-optimize-sibling-calls") #gfortran/lapack/blas bug?
      set(bounds "-Wall -Wextra -Wimplicit-interface -fcheck=all -fbacktrace -fbounds-check -g")
      set(omp "-fopenmp")
      set(NaN "-ffpe-trap=invalid,zero,overflow -finit-real=snan -finit-integer=-99999999")
