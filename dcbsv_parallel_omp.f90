@@ -148,6 +148,8 @@
          INFO = -1
       ELSE IF( KU.LT.1 ) THEN
          INFO = -2
+      ELSE IF( L1 .LT. 2 ) THEN  !too few blocks for 2 threads
+         INFO = -4          
       ELSE IF( NRHS.LT.0 ) THEN
          INFO = -3
       ELSE IF( LDB.LT.MAX( N, 1 ) ) THEN
