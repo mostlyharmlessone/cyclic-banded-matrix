@@ -5,8 +5,8 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=32!8592! 8950 ! size of problem
-    INTEGER, PARAMETER :: KU=2!358 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: n=33!123!90000 ! size of problem
+    INTEGER, PARAMETER :: KU=2!2!358 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0   ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp), ALLOCATABLE :: d(:,:),a(:),b(:),c(:),s(:,:),dd(:,:),z(:,:),zz(:,:),a_short(:) ! a_short truncated a() for dgtsv    
@@ -101,8 +101,12 @@
        AB(i+KU+1,j)=AB(i+KU+1,j)+300           ! emphasize diagonal dominance
       end if
 
-      AB(i+KU+1,j)=KU*KU-I*I+2+j
 
+!!!!!!!TEST matrix with integers, but ill conditioned, also removed fraction in asymmetry line below      
+            AB(i+KU+1,j)=KU*KU-I*I+2+j
+
+      
+      
       if (i >= KU) then
        AB(i+KU+1,j)=AB(i+KU+1,j)+1!.5           ! asymmetry
       end if   
@@ -242,15 +246,16 @@
     call DCBSV_4( N, KU, 4, AB, 2*KU+1, d, N, INFO )      ! overwrites d
     time_end=omp_get_wtime()    
     write(*,*) 'time: ',time_end-time_start
-
-    write(*,*) 'solution ',s(:,1)
-    write(*,*) ' '
-    write(*,*) 'solution ',d(:,1)
-
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1)))/dot_product(s(:,1),s(:,1)) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
     write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
     write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))
+
+    do i=1,N    
+    write(*,*) s(i,1),d(i,1)
+    end do
+    
+    
     z=multiply(AB,d(:,:))
     write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
     write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
