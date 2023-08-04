@@ -102,6 +102,7 @@
    REAL(wp),ALLOCATABLE :: VER(:,:,:)     ! ver is my vectors ujbar    
    REAL(wp),ALLOCATABLE :: ACL(:,:),CCL(:,:),IDENT(:,:),CC(:,:),JEXC(:,:),Z2WK(:,:),Z2WL(:,:)
    REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
+   REAL(wp), ALLOCATABLE :: CpR(:,:),SpR(:,:),BpR(:,:),EEKR(:,:) ! pxp and px2*KU, and sometimes p=0   
    INTEGER, ALLOCATABLE :: ipiv(:)
    INTEGER ::  i,j,k,kk,hh,nn,p,ii,jj,L1,L2,LL,thread,allocstat
    
@@ -201,21 +202,21 @@
     
 !   Setup the arrays  
 !$OMP PARALLEL DO PRIVATE(i,j,k)  
-    do j=1,(N-p)/2+1-KU,KU             
+    do j=1,(N-p)/2+1-KU,KU                
          do i=1,KU
            Bj(i,(j-1)/KU+1,1:NRHS)=B(j+i-1,1:NRHS)
            BBj(i,(j-1)/KU+1,1:NRHS)=BB(j+i-1,1:NRHS)
           do k=1,KU
            Cj(i,k,(j-1)/KU+1)=AB(KU+k-i+1,j+i-1)
-           CjR(i,k,(j-1)/KU+1)=ABB(KU+k-i+1,j+i-1)
+           CjR(i,k,(j-1)/KU+1)=ABB(KU+k-i+1,j+i-1)           
           end do
           do k=1,i
             Pj(i,k,(j-1)/KU+1)=AB(2*KU+1+k-i,j+i-1)
-            PjR(i,k,(j-1)/KU+1)=ABB(2*KU+1+k-i,j+i-1)
+            PjR(i,k,(j-1)/KU+1)=ABB(2*KU+1+k-i,j+i-1)             
           end do
           do k=i,KU
             Sj(i,k,(j-1)/KU+1)=AB(1+k-i,j+i-1)
-            SjR(i,k,(j-1)/KU+1)=ABB(1+k-i,j+i-1)
+            SjR(i,k,(j-1)/KU+1)=ABB(1+k-i,j+i-1)           
           end do 
          end do                        
          do i=KU+1,2*KU
@@ -223,20 +224,19 @@
           BBj(i,(j-1)/KU+1,1:NRHS)=BB(n-2*KU+i-j+1,1:NRHS)      
           do k=KU+1,2*KU
            Cj(i,k,(j-1)/KU+1)=AB(KU+k-i+1,n-2*KU+i-j+1)
-           CjR(i,k,(j-1)/KU+1)=ABB(KU+k-i+1,n-2*KU+i-j+1)
+           CjR(i,k,(j-1)/KU+1)=ABB(KU+k-i+1,n-2*KU+i-j+1)             
           end do
           do k=i,2*KU 
             Pj(i,k,(j-1)/KU+1)=AB(1+k-i,n-2*KU+i-j+1)
-            PjR(i,k,(j-1)/KU+1)=ABB(1+k-i,n-2*KU+i-j+1)
+            PjR(i,k,(j-1)/KU+1)=ABB(1+k-i,n-2*KU+i-j+1)           
           end do
           do k=KU+1,i 
             Sj(i,k,(j-1)/KU+1)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
-            SjR(i,k,(j-1)/KU+1)=ABB(2*KU+1+k-i,n-2*KU+i-j+1)
+            SjR(i,k,(j-1)/KU+1)=ABB(2*KU+1+k-i,n-2*KU+i-j+1)           
           end do 
          end do                                                              
    end do
 !$OMP END PARALLEL DO  
-   deallocate(ABB)
 
    nn=2*KU
 !  IDENTITY MATRIX
@@ -275,10 +275,8 @@
    do i=1,2*KU
      do k=1,2*KU
       if ( (ABS(k - i) - KU) == 0 ) then
-        UD(i,k,0)=1
-!       rotated versions always have p=0   
-        VD(i,k,0)=1         
-        VDR(i,k,L2)=1        
+        UD(i,k,0)=1   
+        VD(i,k,0)=1     
       endif
      end do 
    end do        
@@ -290,16 +288,19 @@
      do k=1,2*KU
       if ( (ABS(k - i) - KU) == 0 ) then
         UDR(i,k,L2)=1
+        VDR(i,k,L2)=1
       endif
      end do 
     end do
    else
     allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS),STAT=allocstat)
+    allocate (CpR(p,p),SpR(p,2*KU),BpR(p,NRHS),EEKR(p,2*KU+NRHS),STAT=allocstat)
     if (allocstat /=0) then
      write(*,*) 'Memory allocation failed'
      stop
     else
      Cp=0 ; Sp=0 ;Bp=0 ; EEK=0
+     CpR=0 ; SpR=0 ;BpR=0 ; EEKR=0     
     endif       
 !  if p /= 0 have to compute UD(:,:,(N-p)/(2*KU)+1), UE(:,(N-p)/(2*KU)+1,:)
 !  already done above UER(:,(N-p)/(2*KU)+1,:)=0; UDR(:,:,(N-p)/(2*KU)+1)=0
@@ -311,6 +312,7 @@
        do k=p+1,2*KU-p
         if ( ABS(k - i) == (KU-p) ) then
          UDR(i,k,L2)=1
+         VDR(i,k,L2)=1
         endif
        end do 
       end do 
@@ -319,18 +321,22 @@
    j=(N-p)/2+1   ! is the start of the middle p values                        
    do i=1,p
     Bp(i,1:NRHS)=B(j+i-1,1:NRHS)
+    BpR(i,1:NRHS)=BB(j+i-1,1:NRHS)    
     do k=1,p
      if (KU+k-i+1 >= 1 .AND. KU+k-i+1 <= 2*KU+1 ) then
       Cp(i,k)=AB(KU+k-i+1,j+i-1)
+      CpR(i,k)=ABB(KU+k-i+1,j+i-1)
      endif 
     end do
     do k=KU+1,2*KU-p+i 
      Sp(i,k)=AB(k+p-i+1,j+i-1)
+     SpR(i,k)=ABB(k+p-i+1,j+i-1)     
     end do 
     do k=1,KU
      if (k >= i) then
       if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
        Sp(i,k)=AB(1+k-i,j+i-1)
+       SpR(i,k)=ABB(1+k-i,j+i-1)       
       endif
      endif
     end do
@@ -339,11 +345,15 @@
 !   Cp zpj = -Sp zj + Bp
 !   concatenate UD precursor and UD solutions onto EEK        
     EEK(:,1:2*KU)=-Sp(:,:)
+    EEKR(:,1:2*KU)=-SpR(:,:)
     do hh=1,NRHS
-      EEK(:,2*KU+hh)=Bp(:,hh)     
+      EEK(:,2*KU+hh)=Bp(:,hh)   
+      EEKR(:,2*KU+hh)=BpR(:,hh)        
     end do     
     call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EEK into solution, overwrites Cp into factors 
-!    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )   ! overwrites EEK into solution, overwrites Cp into inverse     
+!    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )   ! overwrites EEK into solution, overwrites Cp into inverse
+    call DGESV(p,2*KU+NRHS,CpR,p,IPIV,EEKR,p,INFO) ! overwrites EEK into solution, overwrites Cp into factors 
+!    call GaussJordan( p,2*KU+NRHS,CpR,p,EEKR,p,INFO )   ! overwrites EEK into solution, overwrites Cp into inverse     
     if (info /= 0) then
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
 !     RETURN
@@ -353,25 +363,35 @@
      if ( p <= KU ) then     
      do i=1,p    
       UDR(i,:,(N-p)/(2*KU)+1)=EEK(i,1:2*KU)
-      UDR(2*KU-i+1,:,L2)=EEK(p-i+1,1:2*KU)                  
+      UDR(2*KU-i+1,:,L2)=EEK(p-i+1,1:2*KU) 
+      VDR(i,:,(N-p)/(2*KU)+1)=EEKR(i,1:2*KU)
+      VDR(2*KU-i+1,:,L2)=EEKR(p-i+1,1:2*KU)                       
       do hh=1,NRHS     
        UER(i,L2,hh)=EEK(i,2*KU+hh)
-       UER(2*KU-i+1,L2,hh)=EEK(p-i+1,2*KU+hh)                 
+       UER(2*KU-i+1,L2,hh)=EEK(p-i+1,2*KU+hh)  
+       VER(i,L2,hh)=EEKR(i,2*KU+hh)
+       VER(2*KU-i+1,L2,hh)=EEKR(p-i+1,2*KU+hh)                      
       end do
      end do
      else     ! p > KU
      do i=1,KU    
       UDR(i,:,L2)=EEK(i,1:2*KU)
-      UDR(2*KU-i+1,:,L2)=EEK(p-i+1,1:2*KU)                  
+      UDR(2*KU-i+1,:,L2)=EEK(p-i+1,1:2*KU)
+      VDR(i,:,L2)=EEKR(i,1:2*KU)
+      VDR(2*KU-i+1,:,L2)=EEKR(p-i+1,1:2*KU)                        
       do hh=1,NRHS     
        UER(i,L2,hh)=EEK(i,2*KU+hh)
-       UER(2*KU-i+1,L2,hh)=EEK(p-i+1,2*KU+hh)                 
+       UER(2*KU-i+1,L2,hh)=EEK(p-i+1,2*KU+hh)  
+       VER(i,L2,hh)=EEKR(i,2*KU+hh)
+       VER(2*KU-i+1,L2,hh)=EEKR(p-i+1,2*KU+hh)                      
       end do
      end do
      endif          
     endif  ! info =0  
-    deallocate (Cp,Sp,Bp,EEK)            
+    deallocate (Cp,Sp,Bp,EEK) 
+    deallocate (CpR,SpR,BpR,EEKR)           
    endif ! p /=0
+   deallocate(ABB)
 
 !$OMP PARALLEL num_threads(4) PRIVATE(thread)
 !  separate iterative parts into subroutines so each thread can work in parallel
@@ -390,8 +410,6 @@
    endif
 !$OMP END PARALLEL
 
-write(*,*) ii,jj,kk,ll
-
    deallocate(Cj,Pj,Sj,CjR,PjR,SjR)  
    Bj = 0 ; BBj = 0 ! done with input, ready for results
 !  LAST EQUATIONS
@@ -408,13 +426,35 @@ write(*,*) ii,jj,kk,ll
    ACL(4*KU+1:6*KU,1:8*KU)=matmul(ACL(4*KU+1:6*KU,2*KU+1:6*KU),Z2WL)              
    ACL(6*KU+1:8*KU,2*KU+1:4*KU)=IDENT
    ACL(6*KU+1:8*KU,6*KU+1:8*KU)=-ud(:,:,II-1)
-       
+             
 !  RHS   
    CCL(1:2*KU,1:NRHS)=-uER(:,JJ,1:NRHS)      !ue, ueR are vectors v
    CCL(2*KU+1:4*KU,1:NRHS)=-vER(:,KK,1:NRHS) !ve, veR are vectors u
    CCL(4*KU+1:6*KU,1:NRHS)=vE(:,LL-1,1:NRHS)
-   CCL(6*KU+1:8*KU,1:NRHS)=uE(:,II-1,1:NRHS)    
+   CCL(6*KU+1:8*KU,1:NRHS)=uE(:,II-1,1:NRHS)   
+   
+!  this is the correct answer for version that works for zJJ,zII,zJJ-1,zII-1, ii=3,jj=7
+   CC(1:16,1)=  (/11,12,22,23, 3,4,30,31, 13,14,19,20 ,5,6,28,29/)    !n=33 almost
+!   CC(1:16,1)=  (/11,12,21,22, 3,4,29,30, 13,14,19,20 ,5,6,27,28/)    !n=32
+   write(*,*) matmul(ACL(:,:),CC(:,1))-CCL(:,1)      
+   write(*,*) ' '    
+   write(*,*) 'matmul(udr(:,:,JJ),CC(1:4,1))+uER(:,JJ,1)',JJ
+   write(*,*) matmul(udr(:,:,JJ),CC(1:4,1))+uER(:,JJ,1)        
+   write(*,*) 'matmul(ud(:,:,II-1),CC(13:16,1))+uE(:,II-1,1)',II-1 
+   write(*,*) matmul(ud(:,:,II-1),CC(13:16,1))+uE(:,II-1,1)  
 
+!   CC(1:16,1)=matmul(CC(1:16,1),Z2WK)   
+   write(*,*) 'matmul(vdr(:,:,KK),CC(5:8,1))+vER(:,KK,1)',KK
+   write(*,*) matmul(vdr(:,:,KK),CC(5:8,1))+vER(:,KK,1) 
+   
+!   CC(1:16,1)=  (/11,12,21,22, 3,4,30,31, 13,14,19,20 ,5,6,28,29/)    !n=33 almost
+!   CC(1:16,1)=  (/11,12,21,22, 3,4,29,30, 13,14,19,20 ,5,6,27,28/)    !n=32   
+!   CC(1:16,1)=matmul(CC(1:16,1),Z2WL)
+      
+   write(*,*) 'matmul(vd(:,:,LL-1),CC(9:12,1))+vE(:,LL-1,1)',LL-1
+   write(*,*) matmul(vd(:,:,LL-1),CC(9:12,1))+vE(:,LL-1,1)     
+   write(*,*) ' ' 
+   
    call DGESV(8*KU, NRHS , ACL, 8*KU, IPIV, CCL(:,1:NRHS), 8*KU, INFO ) ! overwrites CCL 
 !   call GaussJordan(8*KU, NRHS, ACL ,8*KU, CCL(:,1:NRHS), 8*KU, INFO )  ! overwrites CCL
 
