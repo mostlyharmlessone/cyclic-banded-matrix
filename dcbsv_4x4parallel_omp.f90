@@ -141,6 +141,9 @@
       REAL(wp),INTENT(INOUT) ::  A( LDA, * ), B( LDB, * )
      END SUBROUTINE GaussJordan      
    END INTERFACE   
+
+!  Only works for this condition on N, KU
+   if (mod(N,8*KU) .EQ. 0) then
       
    p=mod(N,2*KU)
    L1=(N-p)/(8*KU)
@@ -547,6 +550,11 @@ stop
     B(1:ldb,1:NRHS)=B(1:ldb,1:NRHS)+BB(1:ldb,1:NRHS)  
        
    deallocate (BB,Bj,BBj)
+   
+   else
+   call DCBSV_4P( N, KU, NRHS, AB, LDAB, B, LDB, INFO )      ! try 4+ version   
+!   call DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO )      ! defaults to 2x2 parallel
+   endif
         
   END SUBROUTINE dcbsv_4
   

@@ -80,6 +80,7 @@ find_package(OpenMP)
                           gauss-jordan.f90)
                           
     file(GLOB source_omp  dcbsv_4x4parallel_omp.f90 
+                          dcbsv_4x4+parallel_omp.f90
                           dcbsv_parallel_omp.f90  
                           dcbsv_forward.f90 
                           dcbsv_reverse.f90 

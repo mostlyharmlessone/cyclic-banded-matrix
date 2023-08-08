@@ -1,4 +1,4 @@
-   SUBROUTINE DCBSV_4( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
+   SUBROUTINE DCBSV_4P( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
    USE lapackinterface 
    USE AB_matrix_fct
    USE OMP_LIB 
@@ -285,7 +285,7 @@
 !  EXCHANGE MATRIX 2KUx2KU
    allocate(JEXC2(nn,nn))
    JEXC2=0
-   forall(j = 1:nn) JEXC(nn-j+1,j) = 1
+   forall(j = 1:nn) JEXC2(nn-j+1,j) = 1
    nn=KU 
 !  EXCHANGE MATRIX, KUxKU
    allocate(JEXC(nn,nn))
@@ -479,7 +479,7 @@
    CCL(6*KU+1:8*KU,1:NRHS)=uE(:,II-1,1:NRHS)   
    
 !  this is the correct answer for version that works for zJJ,zII,zJJ-1,zII-1, ii=3,jj=7
-   CC(1:16,1)=  (/11,12,22,23, 3,4,30,31, 13,14,19,20 ,5,6,28,29/)    !n=33 almost
+   CC(1:16,1)=  (/11,12,22,23, 3,4,30,31, 13,14,20,21 ,5,6,28,29/)    !n=33 almost
 !   CC(1:16,1)=  (/11,12,21,22, 3,4,29,30, 13,14,19,20 ,5,6,27,28/)    !n=32
 !   CC(1:16,1)=  (/11,12,23,24, 3,4,31,32, 13,14,21,22 ,5,6,29,30/)    !n=34 almost
 
@@ -496,8 +496,8 @@
    write(*,*) matmul(ud(:,:,II-1),CC(13:16,1))+uE(:,II-1,1)  
 
 !   CC(1:16,1)=matmul(CC(1:16,1),Z2WK)   
-   write(*,*) 'matmul(vdr(:,:,KK),CC(5:8,1))+vER(:,KK,1)',KK
-   write(*,*) matmul(vdr(:,:,KK),CC(5:8,1))+vER(:,KK,1) 
+!   write(*,*) 'matmul(vdr(:,:,KK),CC(5:8,1))+vER(:,KK,1)',KK
+!   write(*,*) matmul(vdr(:,:,KK),CC(5:8,1))+vER(:,KK,1) 
    
 !   CC(1:16,1)=  (/11,12,21,22, 3,4,30,31, 13,14,19,20 ,5,6,28,29/)    !n=33 almost
 !   CC(1:16,1)=  (/11,12,21,22, 3,4,29,30, 13,14,19,20 ,5,6,27,28/)    !n=32   
@@ -600,7 +600,7 @@ stop
        
    deallocate (BB,Bj,BBj)
         
-  END SUBROUTINE dcbsv_4
+  END SUBROUTINE dcbsv_4P
   
 
 
