@@ -145,7 +145,7 @@
 !  Only works for this condition on N, KU
    if (mod(N,8*KU) .EQ. 0) then
       
-   p=mod(N,2*KU)
+   p=mod(N,2*KU)   ! p=0 since mod(N,8*KU)=0
    L1=(N-p)/(8*KU)
    L2=(N-p)/(2*KU)+1 
 
@@ -251,13 +251,6 @@
    allocate(JEXC(nn,nn))
    JEXC=0
    forall(j = 1:nn) JEXC(nn-j+1,j) = 1 
-!  ROTATION MATRIX
-!   nn=2*KU
-!   allocate(ANK(nn,nn))
-!   kk=KU
-!   ANK=0
-!   forall(j = 1:kk) ANK(j,j+kk) = 1
-!   forall(j = 1:nn-kk) ANK(j+kk,j) = 1
 !  Z to W transform matrices
    nn=4*KU
    allocate(Z2WK(nn,2*nn))
@@ -436,35 +429,8 @@
    CCL(4*KU+1:6*KU,1:NRHS)=vE(:,LL-1,1:NRHS)
    CCL(6*KU+1:8*KU,1:NRHS)=uE(:,II-1,1:NRHS)   
    
-!  this is the correct answer for version that works for zJJ,zII,zJJ-1,zII-1, ii=3,jj=7
-   CC(1:16,1)=  (/11,12,22,23, 3,4,30,31, 13,14,19,20 ,5,6,28,29/)    !n=33 almost
-!   CC(1:16,1)=  (/11,12,21,22, 3,4,29,30, 13,14,19,20 ,5,6,27,28/)    !n=32
-   write(*,*) matmul(ACL(:,:),CC(:,1))-CCL(:,1)      
-   write(*,*) ' '    
-   write(*,*) 'matmul(udr(:,:,JJ),CC(1:4,1))+uER(:,JJ,1)',JJ
-   write(*,*) matmul(udr(:,:,JJ),CC(1:4,1))+uER(:,JJ,1)        
-   write(*,*) 'matmul(ud(:,:,II-1),CC(13:16,1))+uE(:,II-1,1)',II-1 
-   write(*,*) matmul(ud(:,:,II-1),CC(13:16,1))+uE(:,II-1,1)  
-
-!   CC(1:16,1)=matmul(CC(1:16,1),Z2WK)   
-   write(*,*) 'matmul(vdr(:,:,KK),CC(5:8,1))+vER(:,KK,1)',KK
-   write(*,*) matmul(vdr(:,:,KK),CC(5:8,1))+vER(:,KK,1) 
-   
-!   CC(1:16,1)=  (/11,12,21,22, 3,4,30,31, 13,14,19,20 ,5,6,28,29/)    !n=33 almost
-!   CC(1:16,1)=  (/11,12,21,22, 3,4,29,30, 13,14,19,20 ,5,6,27,28/)    !n=32   
-!   CC(1:16,1)=matmul(CC(1:16,1),Z2WL)
-      
-   write(*,*) 'matmul(vd(:,:,LL-1),CC(9:12,1))+vE(:,LL-1,1)',LL-1
-   write(*,*) matmul(vd(:,:,LL-1),CC(9:12,1))+vE(:,LL-1,1)     
-   write(*,*) ' ' 
-   
    call DGESV(8*KU, NRHS , ACL, 8*KU, IPIV, CCL(:,1:NRHS), 8*KU, INFO ) ! overwrites CCL 
 !   call GaussJordan(8*KU, NRHS, ACL ,8*KU, CCL(:,1:NRHS), 8*KU, INFO )  ! overwrites CCL
-
-write(*,*) CCL(:,1)
-
-stop
-
 
     if (info /= 0) then     
      CALL XERBLA( 'DGESV ', INFO )
@@ -551,9 +517,8 @@ stop
        
    deallocate (BB,Bj,BBj)
    
-   else
-   call DCBSV_4P( N, KU, NRHS, AB, LDAB, B, LDB, INFO )      ! try 4+ version   
-!   call DCBSV( N, KU, NRHS, AB, LDAB, B, LDB, INFO )      ! defaults to 2x2 parallel
+   else  ! p .ne. 0
+    call DCBSV_4P( N, KU, NRHS, AB, LDAB, B, LDB, INFO )      ! try 4p version   
    endif
         
   END SUBROUTINE dcbsv_4
