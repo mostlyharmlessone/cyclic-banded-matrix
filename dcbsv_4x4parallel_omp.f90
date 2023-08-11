@@ -8,6 +8,7 @@
 !   Copyright (c) 2021   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
 !   using an O(N*KU) algorithm 
+!   THIS VERSION ONLY SOLVES 0=mod(N,4*KU); else calls DCBSV_4P 
 
 !    INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision 
 
@@ -107,6 +108,14 @@
    INTEGER ::  i,j,k,kk,hh,nn,p,ii,jj,L1,L2,LL,thread,allocstat
    
    INTERFACE
+    subroutine DCBSV_4P( N, KU, NRHS, AB, LDAB, B, LDB, INFO ) 
+      INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision  
+      Integer, Intent(IN) ::  KU, LDAB, LDB, N, NRHS
+      INTEGER, INTENT(OUT) :: INFO
+      Real(wp), Intent(IN) :: AB( ldab, N)      !ldab==2*KU+1
+      Real(wp), Intent(INOUT) ::  B( ldb, NRHS )   
+    end subroutine DCBSV_4P  
+   
     subroutine forward_loop(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
       INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
       Integer, Intent(IN) ::  L, LB, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
@@ -145,7 +154,7 @@
 !  Only works for this condition on N, KU
    if (mod(N,8*KU) .EQ. 0) then
       
-   p=mod(N,2*KU)   ! p=0 since mod(N,8*KU)=0
+   p=mod(N,2*KU)   ! p=0 since mod(N,4*KU)=0
    L1=(N-p)/(8*KU)
    L2=(N-p)/(2*KU)+1 
 
