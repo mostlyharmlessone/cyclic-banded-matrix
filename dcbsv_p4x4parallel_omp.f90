@@ -422,8 +422,11 @@
     call forward_loop_8(L2-L1-1,N,KU,L2,BCj,CjRR,PjRR,SjRR, NRHS, INFO, L1+1, WD, WE, LL)  
    endif   
 !$OMP END PARALLEL
-
    KK=JJ ! save JJ, necessary because VDR is out
+   
+   
+write(*,*) ii,jj,kk,ll
+
    deallocate(Cj,Pj,Sj,CjR,PjR,SjR)  
    deallocate(CjRR,PjRR,SjRR)   
    Bj = 0 ; BBj = 0 ; BCj = 0 ! done with input, ready for results
@@ -450,6 +453,8 @@
       
    call DGESV(8*KU, NRHS , ACL, 8*KU, IPIV, CCL(:,1:NRHS), 8*KU, INFO ) ! overwrites CCL 
 !   call GaussJordan(8*KU, NRHS, ACL ,8*KU, CCL(:,1:NRHS), 8*KU, INFO )  ! overwrites CCL
+
+write(*,*) CCL(:,1)
 
     if (info /= 0) then         
      CALL XERBLA( 'DGESV ', INFO )
