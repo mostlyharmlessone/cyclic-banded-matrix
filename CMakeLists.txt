@@ -12,14 +12,14 @@ set (CMAKE_Fortran_COMPILER "gfortran")
 if(CMAKE_Fortran_COMPILER MATCHES "gfortran")
     set(FC "gfortran")
     set(dialect "-ffree-form -std=f2008 -fexternal-blas -fno-optimize-sibling-calls") #gfortran/lapack/blas bug?
-     set(bounds "-Wall -Wextra -Wimplicit-interface -fcheck=all -fbacktrace -fbounds-check -g")
-     set(omp "-fopenmp")
-     set(NaN "-ffpe-trap=invalid,zero,overflow -finit-real=snan -finit-integer=-99999999")
+    set(bounds "-Wall -Wextra -Wimplicit-interface -fcheck=all -fbacktrace -fbounds-check -g")
+    set(omp "-fopenmp")
+    set(NaN "-ffpe-trap=invalid,zero,overflow -finit-real=snan -finit-integer=-99999999")
 #  profiling with gprof 
  #     set(-pg)    
 #  src profiling with gcov -a -b xxx.f90
 #     set(-g -coverage) 
-#    set(optimize "-O3 -march=native -ffast-math -funroll-loops")    
+    set(optimize "-O3 -march=native -ffast-math -funroll-loops")    
 endif()
 if(CMAKE_Fortran_COMPILER MATCHES "ifort")
     set(FC "ifort")
@@ -79,13 +79,16 @@ find_package(OpenMP)
                           backward_loop.f90
                           gauss-jordan.f90)
                           
-    file(GLOB source_omp  dcbsv_4x4parallel_omp.f90 
+    file(GLOB source_omp  dcbsv_p4x4parallel_omp.f90 
+                          dcbsv_4x4parallel_omp.f90
                           dcbsv_parallel_omp.f90  
                           dcbsv_forward.f90 
                           dcbsv_reverse.f90 
                           dctsv_parallel_omp.f90 
                           forward_loop.f90 
-                          backward_loop.f90                      
+                          backward_loop.f90
+                          forward_loop_8.f90 
+                          backward_loop_8.f90                                             
                           gauss-jordan.f90 
                           thomas.f90)
                            

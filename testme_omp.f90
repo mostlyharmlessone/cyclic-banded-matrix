@@ -5,9 +5,15 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
+<<<<<<< HEAD
     INTEGER, PARAMETER :: n=34!123!90000 ! size of problem
     INTEGER, PARAMETER :: KU=2!2!358 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0   ! for testing vs lapack version only
+=======
+    INTEGER, PARAMETER :: n=38 !96001 ! size of problem
+    INTEGER, PARAMETER :: KU=2 !200 !358 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=0 !200   ! for testing vs lapack version only
+>>>>>>> 472cb775c570f1c4cf567e81b65e67bde2e9e3ee
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp), ALLOCATABLE :: d(:,:),a(:),b(:),c(:),s(:,:),dd(:,:),z(:,:),zz(:,:),a_short(:) ! a_short truncated a() for dgtsv    
     REAL(wp), ALLOCATABLE :: AB(:,:),CD(:,:)                ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv 
@@ -199,6 +205,8 @@
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
     write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
     write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))
+    
+ 
     z=multiply(AB,d(:,:))
     write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
     write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
@@ -216,6 +224,11 @@
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
     write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
     write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))
+    
+    
+    
+    
+    
     z=multiply(AB,d(:,:))
     write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
     write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
@@ -233,6 +246,10 @@
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
     write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
     write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))
+    
+
+    
+    
     z=multiply(AB,d(:,:))
     write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
     write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
@@ -249,13 +266,15 @@
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1)))/dot_product(s(:,1),s(:,1)) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
     write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
-    write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))
-
-    do i=1,N    
-    write(*,*) s(i,1),d(i,1)
-    end do
+    write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))   
     
     
+        do i=1,n
+       write(*,*) s(i,1),d(i,1) 
+    end do 
+    
+      
+       
     z=multiply(AB,d(:,:))
     write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
     write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
