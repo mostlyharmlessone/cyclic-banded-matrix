@@ -375,17 +375,17 @@
     do hh=1,NRHS
       EEK(:,2*KU+hh)=Bp(:,hh)           
     end do     
-    call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EEK into solution, overwrites Cp into factors 
-!    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )   ! overwrites EEK into solution, overwrites Cp into inverse    
+    call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO)     ! overwrites EEK into solution, overwrites Cp into factors 
+!    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )  ! overwrites EEK into solution, overwrites Cp into inverse    
     if (info /= 0) then    
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
 !     RETURN
     else
-!    Two cases, p < KU or p >= KU (p <=2*KU always since p=mod(N,2*KU))    
+!    Two cases, p < KU or p >= KU 
 !    p rows on top and bottom    
      if ( p <= KU ) then     
      do i=1,p    
-      UDR(i,:,(N-p)/(2*KU)+1)=EEK(i,1:2*KU)
+      UDR(i,:,L2)=EEK(i,1:2*KU)
       UDR(2*KU-i+1,:,L2)=EEK(p-i+1,1:2*KU)                        
       do hh=1,NRHS     
        UER(i,L2,hh)=EEK(i,2*KU+hh)
@@ -402,8 +402,9 @@
       end do
      end do
      endif          
-    endif  ! info =0  
-    deallocate (Cp,Sp,Bp,EEK)            
+    endif  ! info =0      
+!   If p > 2*KU for this case because p=mod(N,8*KU), hold on to EEK        
+    deallocate (Cp,Sp,Bp)            
    endif ! p /=0
   
 !$OMP PARALLEL num_threads(4) PRIVATE(thread)
@@ -423,9 +424,6 @@
    endif   
 !$OMP END PARALLEL
    KK=JJ ! save JJ, necessary because VDR is out
-   
-   
-write(*,*) ii,jj,kk,ll
 
    deallocate(Cj,Pj,Sj,CjR,PjR,SjR)  
    deallocate(CjRR,PjRR,SjRR)   
@@ -453,9 +451,6 @@ write(*,*) ii,jj,kk,ll
       
    call DGESV(8*KU, NRHS , ACL, 8*KU, IPIV, CCL(:,1:NRHS), 8*KU, INFO ) ! overwrites CCL 
 !   call GaussJordan(8*KU, NRHS, ACL ,8*KU, CCL(:,1:NRHS), 8*KU, INFO )  ! overwrites CCL
-
-write(*,*) CCL(:,1)
-
     if (info /= 0) then         
      CALL XERBLA( 'DGESV ', INFO )
 !     CALL XERBLA( 'GAUSSJ ', INFO )     
@@ -488,25 +483,15 @@ write(*,*) CCL(:,1)
     do jj=LL-1,2,-1
 !     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
 !     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
-     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))
-     
-     write(*,*) 'jj-1',jj-1
-     write(*,*) Bj(:,jj-1,1)
-     write(*,*) Bj(:,jj,1)     
-           
+     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))           
     end do
           
 !   BACKSUBSTITUTION z(j+1)=UER(j+1)+UDR(:,:,j+1)*z(j) 
     do jj=KK,(N-p)/(2*KU)
 !     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UDR(:,:,jj+1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
 !     Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+CC(:,1:NRHS)
-     Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+matmul(UDR(:,:,jj+1),Bj(:,jj,1:NRHS))
-     
-     write(*,*) 'jj+1',jj+1
-     write(*,*) Bj(:,jj+1,1)
-     write(*,*) Bj(:,jj,1)      
-        
-    end do    
+     Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+matmul(UDR(:,:,jj+1),Bj(:,jj,1:NRHS))      
+    end do
 
 !   BACKSUBSTITUTION w(j-1)=VE(j-1)+VD(:,:,j-1)*w(j) 
     do jj=LL-1,2,-1
@@ -547,6 +532,14 @@ write(*,*) CCL(:,1)
      ii=ii-1      
      end do        
     end do  ! end jj
+    
+!   Last p terms not part of Bj backsubstitution        
+!   If p > 2*KU for this case because p=mod(N,8*KU) not mod(N,2*KU)
+    if (p > 2*KU) then
+     do hh=1,NRHS            
+      B((N-p)/2+1:(N-p)/2+p,hh)=EEK(:,2*KU+hh)+matmul(EEK(:,1:2*KU),Bj(:,L2-1,hh))                         
+     end do      
+    end if    
 
 !  Rotate solution vector back (multiply BB by Asub{n}sup{n-k})
     k=(N-p)/4 !(n-k)
@@ -561,7 +554,7 @@ write(*,*) CCL(:,1)
 !   Replace the missing values into B
     B(1:ldb,1:NRHS)=B(1:ldb,1:NRHS)+BB(1:ldb,1:NRHS)+BC(1:ldb,1:NRHS) 
        
-   deallocate (BB,BC,Bj,BBj,BCj)
+   deallocate (BB,BC,Bj,BBj,BCj,EEK)
         
   END SUBROUTINE dcbsv_4P
   

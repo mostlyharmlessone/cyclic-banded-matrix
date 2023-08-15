@@ -143,8 +143,7 @@
     endif    
 !
 !  Initialize
-   Bj=0;   Cj=0;   Pj=0;  Sj=0
-    
+   Bj=0;   Cj=0;   Pj=0;  Sj=0   
    jj=0  !index of number of arrays       
 !   Setup the arrays       
     do j=1,(N-p)/2+1-KU,KU   

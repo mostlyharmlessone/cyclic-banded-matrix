@@ -298,7 +298,7 @@
 !    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj1,2*KU,UD(:,:,2),2*KU,0.0_wp,A,2*KU)
 !    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj1,2*KU,UD(:,:,0),2*KU,0.0_wp,AA,2*KU)    
 !    A=Cj1+AA+A
-    A=Cj1+matmul(Sj1,ud(:,:,0))+matmul(Pj1,UD(:,:,2))   
+    A=Cj1+matmul(Sj1,ud(:,:,0))+matmul(Pj1,UD(:,:,2))
     call DGESV(2*KU, NRHS , A, 2*KU, IPIV, CCL(:,1:NRHS), 2*KU, INFO ) ! overwrites CCL 
 !    call GaussJordan( 2*KU, NRHS, A ,2*KU, CCL(:,1:NRHS), 2*KU, INFO )  ! overwrites CCL       
     if (info /= 0) then        
