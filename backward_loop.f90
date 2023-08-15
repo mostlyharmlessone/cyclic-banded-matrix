@@ -1,4 +1,4 @@
-  subroutine backward_loop( L, N, KU, LB,Bj,Cj,Pj,Sj, NRHS, INFO, LR,LU,UDR, UER, LL)
+  subroutine backward_loop(p, L, N, KU, LB,Bj,Cj,Pj,Sj, NRHS, INFO, LR,LU,UDR, UER, LL)
   Use lapackinterface
   IMPLICIT NONE   
 !  PURPOSE backward iterative loop
@@ -6,7 +6,7 @@
    INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
 
 !  .. Scalar Arguments ..
-   Integer, Intent(IN) ::  L, LB, LR, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
+   Integer, Intent(IN) ::  p, L, LB, LR, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
                                                        ! LU+1=size(UD,3)=size(UE,2) index LR arrays ie. LR=0 for dcbsv_reverse
    INTEGER, INTENT(OUT) :: INFO,LL                     ! LL is number of steps
 !  .. Array Arguments ..
@@ -20,9 +20,7 @@
    
 !  .. Work space ..   
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
-   INTEGER ::  hh,p,jj,ipiv(2*KU)
-
-   p=mod(N,2*KU)
+   INTEGER ::  hh,jj,ipiv(2*KU)
 
 !! BACKWARD       
 !  ALL BUT THE LAST EQUATION, GENERATE UDR & UER  ! (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj

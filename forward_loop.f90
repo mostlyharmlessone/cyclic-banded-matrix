@@ -1,4 +1,4 @@
-subroutine forward_loop(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
+subroutine forward_loop(p, L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
   Use lapackinterface
   IMPLICIT NONE   
 !  PURPOSE forward iterative loop
@@ -6,7 +6,7 @@ subroutine forward_loop(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
    INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
 
 !  .. Scalar Arguments ..
-   Integer, Intent(IN) ::  L, LB, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
+   Integer, Intent(IN) :: p, L, LB, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
                                                    ! LU+1=size(UD,3)=size(UE,2) index 0 arrays
    INTEGER, INTENT(OUT) :: INFO,LL                 ! LL is number of steps   
    REAL(wp),INTENT(IN) :: Bj(2*KU,LB,NRHS)  
@@ -18,9 +18,7 @@ subroutine forward_loop(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
                
 !  .. Work space ..
    REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
-   INTEGER ::  hh,p,jj,ipiv(2*KU)
-
-   p=mod(N,2*KU)
+   INTEGER ::  hh,jj,ipiv(2*KU)
 
 !! FORWARD   
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  ! (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj 

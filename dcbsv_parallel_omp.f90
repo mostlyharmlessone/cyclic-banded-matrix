@@ -93,9 +93,9 @@
    INTEGER ::  i,j,k,kk,hh,p,ii,jj,L1,LL,thread,allocstat
    
    INTERFACE
-    subroutine forward_loop(L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
+    subroutine forward_loop(p, L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
       INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-      Integer, Intent(IN) ::  L, LB, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
+      Integer, Intent(IN) :: p, L, LB, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
                                                  ! LU+1=size(UD,3)=size(UE,2) index 0 arrays
       INTEGER, INTENT(OUT) :: INFO,LL                 ! LL is number of steps   
       REAL(wp),INTENT(IN) :: Bj(2*KU,LB,NRHS)  
@@ -106,9 +106,9 @@
       REAL(wp),INTENT(INOUT) :: UE(2*KU,0:LU,NRHS)      ! ue is my vectors vj   
      end subroutine forward_loop
         
-     subroutine backward_loop( L, N, KU, LB,Bj,Cj,Pj,Sj, NRHS, INFO, LR,LU,UDR, UER, LL)
+     subroutine backward_loop(p, L, N, KU, LB,Bj,Cj,Pj,Sj, NRHS, INFO, LR,LU,UDR, UER, LL)
       INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-      Integer, Intent(IN) ::  L, LB, LR, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
+      Integer, Intent(IN) :: p, L, LB, LR, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
                                                        ! LU+1=size(UD,3)=size(UE,2) index LR arrays ie. LR=0 for dcbsv_reverse
       INTEGER, INTENT(OUT) :: INFO,LL                     ! LL is number of steps
       REAL(wp),INTENT(IN) :: Bj(2*KU,LB,NRHS)  
@@ -305,9 +305,9 @@
 !  separate iterative parts into subroutines so each thread can work in parallel
    thread = omp_get_thread_num()
    if (thread==0) then
-    call forward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1+1, UD, UE, JJ) !size(UD,3)-1 == L1+1 =(N-p)/(4*KU)+1     
+    call forward_loop(p, L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1+1, UD, UE, JJ) !size(UD,3)-1 == L1+1 =(N-p)/(4*KU)+1     
    else
-    call backward_loop(L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1, size(Bj,2),UDR, UER, LL) !dimensions UDR L1,size(Bj,2)=(N-p)/(2*KU)+1   
+    call backward_loop(p, L1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, L1, size(Bj,2),UDR, UER, LL) !dimensions UDR L1,size(Bj,2)=(N-p)/(2*KU)+1   
    endif
 !$OMP END PARALLEL
 

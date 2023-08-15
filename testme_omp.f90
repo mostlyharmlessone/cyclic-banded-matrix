@@ -5,8 +5,8 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=90000 ! size of problem
-    INTEGER, PARAMETER :: KU=358 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: n=251 !95000 ! size of problem
+    INTEGER, PARAMETER :: KU=5 !358 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
     INTEGER, PARAMETER :: KL=0 !358   ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp), ALLOCATABLE :: d(:,:),a(:),b(:),c(:),s(:,:),dd(:,:),z(:,:),zz(:,:),a_short(:) ! a_short truncated a() for dgtsv    
@@ -99,14 +99,7 @@
       AB(i+KU+1,j)=20.0*(i)**2 + 5.*j/(1.0*n)  ! without the second term, can be ill-conditioned, eg N=9, KU=2 
       if (i == 0) then
        AB(i+KU+1,j)=AB(i+KU+1,j)+300           ! emphasize diagonal dominance
-      end if
-
-
-!!!!!!!TEST matrix with integers, but ill conditioned, also removed fraction in asymmetry line below      
-!            AB(i+KU+1,j)=KU*KU-I*I+2+j
-
-      
-      
+      end if    
       if (i >= KU) then
        AB(i+KU+1,j)=AB(i+KU+1,j)+1.5           ! asymmetry
       end if   

@@ -86,10 +86,10 @@
    INTEGER ::  i,j,k,kk,hh,LL,p,ii,jj,ipiv(2*KU),allocstat
 
    INTERFACE        
-     subroutine backward_loop( L, N, KU, LB,Bj,Cj,Pj,Sj, NRHS, INFO, LR,LU,UDR, UER, LL)
+     subroutine backward_loop(p, L, N, KU, LB,Bj,Cj,Pj,Sj, NRHS, INFO, LR,LU,UDR, UER, LL)
       INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
 !  .. Scalar Arguments ..
-      Integer, Intent(IN) ::  L, LB, LR, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
+      Integer, Intent(IN) ::  p, L, LB, LR, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
                                                        ! LU+1=size(UD,3)=size(UE,2) index LR arrays ie. LR=0 for dcbsv_reverse
       INTEGER, INTENT(OUT) :: INFO,LL                     ! LL is number of steps
 !  .. Array Arguments ..
@@ -273,7 +273,7 @@
    endif ! p /=0
 
 !   main loop       
-    call backward_loop(1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, 0,size(UD,3)-1,UD, UE, LL)
+    call backward_loop(p, 1, N ,KU, size(Bj,2),Bj,Cj,Pj,Sj, NRHS, INFO, 0,size(UD,3)-1,UD, UE, LL)
       
     allocate(Cj1(2*KU,2*KU),Sj1(2*KU,2*KU),Pj1(2*KU,2*KU),STAT=allocstat)
     if (allocstat /=0) then

@@ -86,9 +86,7 @@ find_package(OpenMP)
                           dcbsv_reverse.f90 
                           dctsv_parallel_omp.f90 
                           forward_loop.f90 
-                          backward_loop.f90
-                          forward_loop_8.f90 
-                          backward_loop_8.f90                                             
+                          backward_loop.f90                                            
                           gauss-jordan.f90 
                           thomas.f90)
                            
