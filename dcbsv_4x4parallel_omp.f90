@@ -5,10 +5,9 @@
         
    IMPLICIT NONE
    INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-!   Copyright (c) 2021   Anthony M de Beus
+!   Copyright (c) 2023   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
 !   using an O(N*KU) algorithm 
-!   THIS VERSION ONLY SOLVES 0=mod(N,4*KU); else calls DCBSV_4P 
 
 !    INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision 
 
@@ -83,15 +82,23 @@
 
 !  .. Work space ..
 
-   Real(wp),ALLOCATABLE :: ABB(:,:),BB(:,:)        !rotated version
-   REAL(wp),ALLOCATABLE :: Bj(:,:,:)
-   REAL(wp),ALLOCATABLE :: BBj(:,:,:)              !rotated version     
+!  original coordinates  
+   REAL(wp),ALLOCATABLE :: Bj(:,:,:)    
    REAL(wp),ALLOCATABLE :: Cj(:,:,:)
    REAL(wp),ALLOCATABLE :: Pj(:,:,:)
    REAL(wp),ALLOCATABLE :: Sj(:,:,:) 
-   REAL(wp),ALLOCATABLE :: CjR(:,:,:)     !rotated version  
-   REAL(wp),ALLOCATABLE :: PjR(:,:,:)     !rotated version  
-   REAL(wp),ALLOCATABLE :: SjR(:,:,:)     !rotated version
+   
+   Real(wp),ALLOCATABLE :: ABB(:,:),BB(:,:)  !rotated version
+   REAL(wp),ALLOCATABLE :: BBj(:,:,:)        !rotated version    
+   REAL(wp),ALLOCATABLE :: CjR(:,:,:)        !rotated version  
+   REAL(wp),ALLOCATABLE :: PjR(:,:,:)        !rotated version  
+   REAL(wp),ALLOCATABLE :: SjR(:,:,:)        !rotated version
+   
+   Real(wp),ALLOCATABLE :: ABC(:,:),BC(:,:)  !rotated version
+   REAL(wp),ALLOCATABLE :: BCj(:,:,:)        !rotated version   
+   REAL(wp),ALLOCATABLE :: CjRR(:,:,:)       !rotated version  
+   REAL(wp),ALLOCATABLE :: PjRR(:,:,:)       !rotated version  
+   REAL(wp),ALLOCATABLE :: SjRR(:,:,:)       !rotated version   
         
    REAL(wp),ALLOCATABLE :: UD(:,:,:)      ! ud is my set of matrices Aj
    REAL(wp),ALLOCATABLE :: UE(:,:,:)      ! ue is my vectors vj 
@@ -100,27 +107,21 @@
    REAL(wp),ALLOCATABLE :: VD(:,:,:)      ! vd is my set of matrices Bj
    REAL(wp),ALLOCATABLE :: VE(:,:,:)      ! ve is my vectors uj 
    REAL(wp),ALLOCATABLE :: VDR(:,:,:)     ! vdr is my set of matrices Bjbar
-   REAL(wp),ALLOCATABLE :: VER(:,:,:)     ! ver is my vectors ujbar    
+   REAL(wp),ALLOCATABLE :: VER(:,:,:)     ! ver is my vectors ujbar   
+   REAL(wp),ALLOCATABLE :: WD(:,:,:)      ! wd is my set of matrices Cj
+   REAL(wp),ALLOCATABLE :: WE(:,:,:)      ! we is my vectors uuj   
+   REAL(wp),ALLOCATABLE :: ANK(:,:),JEXC2(:,:)   
    REAL(wp),ALLOCATABLE :: ACL(:,:),CCL(:,:),IDENT(:,:),CC(:,:),JEXC(:,:),Z2WK(:,:),Z2WL(:,:)
-   REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0
-   REAL(wp), ALLOCATABLE :: CpR(:,:),SpR(:,:),BpR(:,:),EEKR(:,:) ! pxp and px2*KU, and sometimes p=0   
+   REAL(wp), ALLOCATABLE :: Cp(:,:),Sp(:,:),Bp(:,:),EEK(:,:) ! pxp and px2*KU, and sometimes p=0  
    INTEGER, ALLOCATABLE :: ipiv(:)
    INTEGER ::  i,j,k,kk,hh,nn,p,ii,jj,L1,L2,LL,thread,allocstat
    
    INTERFACE
-    subroutine DCBSV_4P( N, KU, NRHS, AB, LDAB, B, LDB, INFO ) 
-      INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision  
-      Integer, Intent(IN) ::  KU, LDAB, LDB, N, NRHS
-      INTEGER, INTENT(OUT) :: INFO
-      Real(wp), Intent(IN) :: AB( ldab, N)      !ldab==2*KU+1
-      Real(wp), Intent(INOUT) ::  B( ldb, NRHS )   
-    end subroutine DCBSV_4P  
-   
     subroutine forward_loop(p, L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
       INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-      Integer, Intent(IN) :: p, L, LB, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
-                                                 ! LU+1=size(UD,3)=size(UE,2) index 0 arrays
-      INTEGER, INTENT(OUT) :: INFO,LL                 ! LL is number of steps   
+      Integer, Intent(IN) ::  p, L, LB, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
+                                                         ! LU+1=size(UD,3)=size(UE,2) index 0 arrays
+      INTEGER, INTENT(OUT) :: INFO,LL                    ! LL is number of steps   
       REAL(wp),INTENT(IN) :: Bj(2*KU,LB,NRHS)  
       REAL(wp),INTENT(IN) :: Cj(2*KU,2*KU,LB)
       REAL(wp),INTENT(IN) :: Pj(2*KU,2*KU,LB)
@@ -133,8 +134,8 @@
       INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
 !  .. Scalar Arguments ..
       Integer, Intent(IN) ::  p, L, LB, LR, LU, KU, N, NRHS  ! L is starting place, LB=size(B,2)=size(C/P/J,3) 
-                                                       ! LU+1=size(UD,3)=size(UE,2) index LR arrays ie. LR=0 for dcbsv_reverse
-      INTEGER, INTENT(OUT) :: INFO,LL                     ! LL is number of steps
+                                                             ! LU+1=size(UD,3)=size(UE,2) index LR arrays ie. LR=0 for dcbsv_reverse
+      INTEGER, INTENT(OUT) :: INFO,LL                        ! LL is number of steps
       REAL(wp),INTENT(IN) :: Bj(2*KU,LB,NRHS)  
       REAL(wp),INTENT(IN) :: Cj(2*KU,2*KU,LB)
       REAL(wp),INTENT(IN) :: Pj(2*KU,2*KU,LB)
@@ -150,27 +151,32 @@
       REAL(wp),INTENT(INOUT) ::  A( LDA, * ), B( LDB, * )
      END SUBROUTINE GaussJordan      
    END INTERFACE   
-
-!  Only works for this condition on N, KU
-   if (mod(N,8*KU) .EQ. 0) then
       
-   p=mod(N,2*KU)   ! p=0 since mod(N,4*KU)=0
+   p=mod(N,8*KU)
    L1=(N-p)/(8*KU)
    L2=(N-p)/(2*KU)+1 
 
-   allocate(ABB(ldab,N))      
-   allocate(BB(ldb,NRHS))
    allocate(Bj(2*KU,L2,NRHS),Cj(2*KU,2*KU,L2))
-   allocate(BBj(2*KU,L2,NRHS),CjR(2*KU,2*KU,L2))   
-   allocate(Pj(2*KU,2*KU,L2),Sj(2*KU,2*KU,L2))
-   allocate(PjR(2*KU,2*KU,L2),SjR(2*KU,2*KU,L2))
-      
+   allocate(Pj(2*KU,2*KU,L2),Sj(2*KU,2*KU,L2))      
    allocate(UD(2*KU,2*KU,0:L1+1),UE(2*KU,0:L1+1,NRHS))  
-   allocate(UDR(2*KU,2*KU,L2-L1-1:L2),UER(2*KU,L2-L1-1:L2,NRHS))   
+   allocate(UDR(2*KU,2*KU,L2-L1-1:L2),UER(2*KU,L2-L1-1:L2,NRHS)) 
    
-   allocate(VD(2*KU,2*KU,0:L1+1),VE(2*KU,0:L1+1,NRHS))   
-   allocate(VDR(2*KU,2*KU,L2-L1-1:L2),VER(2*KU,L2-L1-1:L2,NRHS)) 
-  
+   allocate(ABB(ldab,N))      
+   allocate(BB(ldb,NRHS))   
+   allocate(BBj(2*KU,L2,NRHS),CjR(2*KU,2*KU,L2))      
+   allocate(PjR(2*KU,2*KU,L2),SjR(2*KU,2*KU,L2))   
+   allocate(VD(2*KU,2*KU,0:L1+1),VE(2*KU,0:L1+1,NRHS))
+    
+   if (p /= 0) then
+    allocate(ABC(ldab,N))      
+    allocate(BC(ldb,NRHS))
+    allocate(BCj(2*KU,L2,NRHS),CjRR(2*KU,2*KU,L2))   
+    allocate(PjRR(2*KU,2*KU,L2),SjRR(2*KU,2*KU,L2))   
+    allocate(WD(2*KU,2*KU,0:L1+1),WE(2*KU,0:L1+1,NRHS))
+   else
+    allocate(VDR(2*KU,2*KU,L2-L1-1:L2),VER(2*KU,L2-L1-1:L2,NRHS))     
+   endif
+   
    allocate(IPIV(8*KU),STAT=allocstat)  ! need IPIV 8*KU not 2*KU for last equations
    if (allocstat /=0) then
     write(*,*) 'Memory allocation failed'
@@ -200,7 +206,12 @@
 !
 !  Initialize
    ipiv=0;   Bj=0;   Cj=0;   Pj=0;   Sj=0 ; PjR = 0 ; CjR = 0 ; SjR = 0 ; BBj = 0 
-   UER=0;   UDR=0;   UE=0;   UD=0  ; VER=0;   VDR=0;   VE=0;   VD=0 
+   UER=0;   UDR=0;   UE=0;   UD=0  ;  VE=0;   VD=0 
+   if (p /= 0) then
+    PjRR = 0 ; CjRR = 0 ; SjRR = 0 ; BCj = 0 ;  WE=0;   WD=0
+   else
+    VDR = 0 ; VER = 0
+   endif
    jj=0  !index of number of arrays, replaced by loop invariant (j-1)/KU+1 below to enable parallelism
    ii=0 ; kk=0 ; ll=0
   
@@ -211,8 +222,17 @@
     ABB(1:ldab,1:N)=RotateRows(AB,k)
     ABB(1:ldab,1:N)=ReverseRows(ABB)
     ABB(1:ldab,1:N)=ReverseColumns(ABB)
-    
-!   Setup the arrays  
+    if (p /= 0 ) then
+!  Rotate again    
+     k=(N-p)/2
+     BC(1:ldb,1:NRHS)=RotateColumns(BB,k)
+     BC(1:ldb,1:NRHS)=ReverseColumns(BC)
+     ABC(1:ldab,1:N)=RotateRows(ABB,k)
+     ABC(1:ldab,1:N)=ReverseRows(ABC)
+     ABC(1:ldab,1:N)=ReverseColumns(ABC)    
+    endif
+!   Setup the arrays
+    if ( p == 0 ) then
 !$OMP PARALLEL DO PRIVATE(i,j,k)  
     do j=1,(N-p)/2+1-KU,KU                
          do i=1,KU
@@ -220,7 +240,7 @@
            BBj(i,(j-1)/KU+1,1:NRHS)=BB(j+i-1,1:NRHS)
           do k=1,KU
            Cj(i,k,(j-1)/KU+1)=AB(KU+k-i+1,j+i-1)
-           CjR(i,k,(j-1)/KU+1)=ABB(KU+k-i+1,j+i-1)           
+           CjR(i,k,(j-1)/KU+1)=ABB(KU+k-i+1,j+i-1)                  
           end do
           do k=1,i
             Pj(i,k,(j-1)/KU+1)=AB(2*KU+1+k-i,j+i-1)
@@ -236,7 +256,7 @@
           BBj(i,(j-1)/KU+1,1:NRHS)=BB(n-2*KU+i-j+1,1:NRHS)      
           do k=KU+1,2*KU
            Cj(i,k,(j-1)/KU+1)=AB(KU+k-i+1,n-2*KU+i-j+1)
-           CjR(i,k,(j-1)/KU+1)=ABB(KU+k-i+1,n-2*KU+i-j+1)             
+           CjR(i,k,(j-1)/KU+1)=ABB(KU+k-i+1,n-2*KU+i-j+1)                  
           end do
           do k=i,2*KU 
             Pj(i,k,(j-1)/KU+1)=AB(1+k-i,n-2*KU+i-j+1)
@@ -247,19 +267,79 @@
             SjR(i,k,(j-1)/KU+1)=ABB(2*KU+1+k-i,n-2*KU+i-j+1)           
           end do 
          end do                                                              
+   end do 
+!$OMP END PARALLEL DO       
+   else
+!$OMP PARALLEL DO PRIVATE(i,j,k)     
+    do j=1,(N-p)/2+1-KU,KU                
+         do i=1,KU
+           Bj(i,(j-1)/KU+1,1:NRHS)=B(j+i-1,1:NRHS)
+           BBj(i,(j-1)/KU+1,1:NRHS)=BB(j+i-1,1:NRHS)
+           BCj(i,(j-1)/KU+1,1:NRHS)=BC(j+i-1,1:NRHS)
+          do k=1,KU
+           Cj(i,k,(j-1)/KU+1)=AB(KU+k-i+1,j+i-1)
+           CjR(i,k,(j-1)/KU+1)=ABB(KU+k-i+1,j+i-1)
+           CjRR(i,k,(j-1)/KU+1)=ABC(KU+k-i+1,j+i-1)                   
+          end do
+          do k=1,i
+            Pj(i,k,(j-1)/KU+1)=AB(2*KU+1+k-i,j+i-1)
+            PjR(i,k,(j-1)/KU+1)=ABB(2*KU+1+k-i,j+i-1)             
+            PjRR(i,k,(j-1)/KU+1)=ABC(2*KU+1+k-i,j+i-1) 
+          end do
+          do k=i,KU
+            Sj(i,k,(j-1)/KU+1)=AB(1+k-i,j+i-1)
+            SjR(i,k,(j-1)/KU+1)=ABB(1+k-i,j+i-1)           
+            SjRR(i,k,(j-1)/KU+1)=ABC(1+k-i,j+i-1)
+          end do 
+         end do                        
+         do i=KU+1,2*KU
+          Bj(i,(j-1)/KU+1,1:NRHS)=B(n-2*KU+i-j+1,1:NRHS)
+          BBj(i,(j-1)/KU+1,1:NRHS)=BB(n-2*KU+i-j+1,1:NRHS)      
+          BCj(i,(j-1)/KU+1,1:NRHS)=BC(n-2*KU+i-j+1,1:NRHS)
+          do k=KU+1,2*KU
+           Cj(i,k,(j-1)/KU+1)=AB(KU+k-i+1,n-2*KU+i-j+1)
+           CjR(i,k,(j-1)/KU+1)=ABB(KU+k-i+1,n-2*KU+i-j+1)
+           CjRR(i,k,(j-1)/KU+1)=ABC(KU+k-i+1,n-2*KU+i-j+1)                    
+          end do
+          do k=i,2*KU 
+            Pj(i,k,(j-1)/KU+1)=AB(1+k-i,n-2*KU+i-j+1)
+            PjR(i,k,(j-1)/KU+1)=ABB(1+k-i,n-2*KU+i-j+1)           
+            PjRR(i,k,(j-1)/KU+1)=ABC(1+k-i,n-2*KU+i-j+1)
+          end do
+          do k=KU+1,i 
+            Sj(i,k,(j-1)/KU+1)=AB(2*KU+1+k-i,n-2*KU+i-j+1)
+            SjR(i,k,(j-1)/KU+1)=ABB(2*KU+1+k-i,n-2*KU+i-j+1)           
+            SjRR(i,k,(j-1)/KU+1)=ABC(2*KU+1+k-i,n-2*KU+i-j+1)
+          end do 
+         end do                                                              
    end do
-!$OMP END PARALLEL DO  
-
+!$OMP END PARALLEL DO      
+   deallocate(ABC)
+   endif
+   deallocate(ABB)
+   
    nn=2*KU
 !  IDENTITY MATRIX
    allocate(IDENT(nn,nn))
    IDENT=0 
-   forall(j = 1:nn) IDENT(j,j) = 1
+   forall(j = 1:nn) IDENT(j,j) = 1 
+   if (p /= 0) then
+!  ROTATION MATRIX
+    allocate(ANK(nn,nn))
+    kk=KU
+    ANK=0
+    forall(j = 1:kk) ANK(j,j+kk) = 1
+    forall(j = 1:nn-kk) ANK(j+kk,j) = 1
+!  EXCHANGE MATRIX 2KUx2KU
+    allocate(JEXC2(nn,nn))
+    JEXC2=0
+    forall(j = 1:nn) JEXC2(nn-j+1,j) = 1
+   endif
    nn=KU 
-!  EXCHANGE MATRIX
+!  EXCHANGE MATRIX, KUxKU
    allocate(JEXC(nn,nn))
    JEXC=0
-   forall(j = 1:nn) JEXC(nn-j+1,j) = 1 
+   forall(j = 1:nn) JEXC(nn-j+1,j) = 1      
 !  Z to W transform matrices
    nn=4*KU
    allocate(Z2WK(nn,2*nn))
@@ -281,7 +361,10 @@
      do k=1,2*KU
       if ( (ABS(k - i) - KU) == 0 ) then
         UD(i,k,0)=1   
-        VD(i,k,0)=1     
+        VD(i,k,0)=1 
+        if (p /= 0) then  
+         WD(i,k,0)=1          
+        endif 
       endif
      end do 
    end do        
@@ -293,31 +376,28 @@
      do k=1,2*KU
       if ( (ABS(k - i) - KU) == 0 ) then
         UDR(i,k,L2)=1
-        VDR(i,k,L2)=1
+        VDR(i,k,L2)=1        
       endif
      end do 
     end do
    else
     allocate (Cp(p,p),Sp(p,2*KU),Bp(p,NRHS),EEK(p,2*KU+NRHS),STAT=allocstat)
-    allocate (CpR(p,p),SpR(p,2*KU),BpR(p,NRHS),EEKR(p,2*KU+NRHS),STAT=allocstat)
     if (allocstat /=0) then
      write(*,*) 'Memory allocation failed'
      stop
     else
-     Cp=0 ; Sp=0 ;Bp=0 ; EEK=0
-     CpR=0 ; SpR=0 ;BpR=0 ; EEKR=0     
+     Cp=0 ; Sp=0 ;Bp=0 ; EEK=0    
     endif       
 !  if p /= 0 have to compute UD(:,:,(N-p)/(2*KU)+1), UE(:,(N-p)/(2*KU)+1,:)
 !  already done above UER(:,(N-p)/(2*KU)+1,:)=0; UDR(:,:,(N-p)/(2*KU)+1)=0
      if (p < KU) then
 !    needs A0 in center 2(KU-p) in size
 !    result is 2KUx2KU
-!     sqsize=2*KU-2*p
+!    sqsize=2*KU-2*p
       do i=p+1,2*KU-p
        do k=p+1,2*KU-p
         if ( ABS(k - i) == (KU-p) ) then
          UDR(i,k,L2)=1
-         VDR(i,k,L2)=1
         endif
        end do 
       end do 
@@ -325,23 +405,19 @@
 !  FIRST ARRAYS now p square and px2*KU at the middle values
    j=(N-p)/2+1   ! is the start of the middle p values                        
    do i=1,p
-    Bp(i,1:NRHS)=B(j+i-1,1:NRHS)
-    BpR(i,1:NRHS)=BB(j+i-1,1:NRHS)    
+    Bp(i,1:NRHS)=B(j+i-1,1:NRHS)   
     do k=1,p
      if (KU+k-i+1 >= 1 .AND. KU+k-i+1 <= 2*KU+1 ) then
       Cp(i,k)=AB(KU+k-i+1,j+i-1)
-      CpR(i,k)=ABB(KU+k-i+1,j+i-1)
      endif 
     end do
     do k=KU+1,2*KU-p+i 
-     Sp(i,k)=AB(k+p-i+1,j+i-1)
-     SpR(i,k)=ABB(k+p-i+1,j+i-1)     
+     Sp(i,k)=AB(k+p-i+1,j+i-1)     
     end do 
     do k=1,KU
      if (k >= i) then
       if (1+k-i >= 1 .AND. 1+k-i <= 2*KU+1 ) then
-       Sp(i,k)=AB(1+k-i,j+i-1)
-       SpR(i,k)=ABB(1+k-i,j+i-1)       
+       Sp(i,k)=AB(1+k-i,j+i-1)      
       endif
      endif
     end do
@@ -350,54 +426,41 @@
 !   Cp zpj = -Sp zj + Bp
 !   concatenate UD precursor and UD solutions onto EEK        
     EEK(:,1:2*KU)=-Sp(:,:)
-    EEKR(:,1:2*KU)=-SpR(:,:)
     do hh=1,NRHS
-      EEK(:,2*KU+hh)=Bp(:,hh)   
-      EEKR(:,2*KU+hh)=BpR(:,hh)        
+      EEK(:,2*KU+hh)=Bp(:,hh)           
     end do     
-    call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EEK into solution, overwrites Cp into factors 
-!    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )   ! overwrites EEK into solution, overwrites Cp into inverse
-    call DGESV(p,2*KU+NRHS,CpR,p,IPIV,EEKR,p,INFO) ! overwrites EEK into solution, overwrites Cp into factors 
-!    call GaussJordan( p,2*KU+NRHS,CpR,p,EEKR,p,INFO )   ! overwrites EEK into solution, overwrites Cp into inverse     
-    if (info /= 0) then
+    call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO)     ! overwrites EEK into solution, overwrites Cp into factors 
+!    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )  ! overwrites EEK into solution, overwrites Cp into inverse    
+    if (info /= 0) then    
      CALL XERBLA( 'DGETRS/DCBSV ', INFO )
 !     RETURN
     else
-!    Two cases, p < KU or p >= KU (p <=2*KU always since p=mod(N,2*KU))    
+!    Two cases, p < KU or p >= KU 
 !    p rows on top and bottom    
      if ( p <= KU ) then     
      do i=1,p    
-      UDR(i,:,(N-p)/(2*KU)+1)=EEK(i,1:2*KU)
-      UDR(2*KU-i+1,:,L2)=EEK(p-i+1,1:2*KU) 
-      VDR(i,:,(N-p)/(2*KU)+1)=EEKR(i,1:2*KU)
-      VDR(2*KU-i+1,:,L2)=EEKR(p-i+1,1:2*KU)                       
+      UDR(i,:,L2)=EEK(i,1:2*KU)
+      UDR(2*KU-i+1,:,L2)=EEK(p-i+1,1:2*KU)                        
       do hh=1,NRHS     
        UER(i,L2,hh)=EEK(i,2*KU+hh)
-       UER(2*KU-i+1,L2,hh)=EEK(p-i+1,2*KU+hh)  
-       VER(i,L2,hh)=EEKR(i,2*KU+hh)
-       VER(2*KU-i+1,L2,hh)=EEKR(p-i+1,2*KU+hh)                      
+       UER(2*KU-i+1,L2,hh)=EEK(p-i+1,2*KU+hh)                        
       end do
      end do
      else     ! p > KU
      do i=1,KU    
       UDR(i,:,L2)=EEK(i,1:2*KU)
-      UDR(2*KU-i+1,:,L2)=EEK(p-i+1,1:2*KU)
-      VDR(i,:,L2)=EEKR(i,1:2*KU)
-      VDR(2*KU-i+1,:,L2)=EEKR(p-i+1,1:2*KU)                        
+      UDR(2*KU-i+1,:,L2)=EEK(p-i+1,1:2*KU)                       
       do hh=1,NRHS     
        UER(i,L2,hh)=EEK(i,2*KU+hh)
-       UER(2*KU-i+1,L2,hh)=EEK(p-i+1,2*KU+hh)  
-       VER(i,L2,hh)=EEKR(i,2*KU+hh)
-       VER(2*KU-i+1,L2,hh)=EEKR(p-i+1,2*KU+hh)                      
+       UER(2*KU-i+1,L2,hh)=EEK(p-i+1,2*KU+hh)                        
       end do
      end do
      endif          
-    endif  ! info =0  
-    deallocate (Cp,Sp,Bp,EEK) 
-    deallocate (CpR,SpR,BpR,EEKR)           
+    endif  ! info =0      
+!   If p > 2*KU for this case because p=mod(N,8*KU), hold on to EEK        
+    deallocate (Cp,Sp,Bp)            
    endif ! p /=0
-   deallocate(ABB)
-
+  
 !$OMP PARALLEL num_threads(4) PRIVATE(thread)
 !  separate iterative parts into subroutines so each thread can work in parallel
    thread = omp_get_thread_num()
@@ -411,20 +474,33 @@
     call forward_loop(p,L2-L1-1,N,KU,L2,BBj,CjR,PjR,SjR, NRHS, INFO, L1+1, VD, VE, LL)  
    endif
    if (thread==3) then
-    call backward_loop(p,L2-L1-1,N,KU,L2,BBj,CjR,PjR,SjR, NRHS, INFO, L2-L1-1, L2 ,VDR, VER, KK) 
-   endif
+    if (p == 0) then
+     call backward_loop(p,L2-L1-1,N,KU,L2,BBj,CjR,PjR,SjR, NRHS, INFO, L2-L1-1, L2 ,VDR, VER, KK)
+    else
+     call forward_loop(p,L2-L1-1,N,KU,L2,BCj,CjRR,PjRR,SjRR, NRHS, INFO, L1+1, WD, WE, LL)  
+    endif 
+   endif   
 !$OMP END PARALLEL
+   KK=JJ ! save JJ, necessary when VDR is out for p /= 0
 
-   deallocate(Cj,Pj,Sj,CjR,PjR,SjR)  
-   Bj = 0 ; BBj = 0 ! done with input, ready for results
+   deallocate(Cj,Pj,Sj,CjR,PjR,SjR) 
+   if ( p /= 0 ) then 
+    deallocate(CjRR,PjRR,SjRR) ; BCj = 0
+   endif   
+   Bj = 0 ; BBj = 0  ! done with input, ready for results
 !  LAST EQUATIONS
    allocate(ACL(8*KU,8*KU),CCL(8*KU,NRHS),CC(8*KU,NRHS))
    ACL = 0 ; CCL = 0 ; CC =0
      
    ACL(1:2*KU,1:2*KU)=udR(:,:,JJ)
    ACL(1:2*KU,4*KU+1:6*KU)=-IDENT  
-   ACL(2*KU+1:4*KU,2*KU+1:4*KU)=vdR(:,:,KK)
-   ACL(2*KU+1:4*KU,4*KU+1:6*KU)=-IDENT
+   if ( p == 0 ) then
+    ACL(2*KU+1:4*KU,2*KU+1:4*KU)=vdR(:,:,KK)
+    ACL(2*KU+1:4*KU,4*KU+1:6*KU)=-IDENT   
+   else
+    ACL(2*KU+1:4*KU,2*KU+1:4*KU)=-matmul(wd(:,:,LL-1),matmul(ANK,JEXC2))
+    ACL(2*KU+1:4*KU,4*KU+1:6*KU)=matmul(ANK,JEXC2)
+   endif
    ACL(4*KU+1:6*KU,2*KU+1:4*KU)=IDENT
    ACL(4*KU+1:6*KU,4*KU+1:6*KU)=-vd(:,:,LL-1)
    ACL(2*KU+1:4*KU,1:8*KU)=matmul(ACL(2*KU+1:4*KU,2*KU+1:6*KU),Z2WK)
@@ -434,14 +510,17 @@
              
 !  RHS   
    CCL(1:2*KU,1:NRHS)=-uER(:,JJ,1:NRHS)      !ue, ueR are vectors v
-   CCL(2*KU+1:4*KU,1:NRHS)=-vER(:,KK,1:NRHS) !ve, veR are vectors u
+   if ( p == 0 ) then
+    CCL(2*KU+1:4*KU,1:NRHS)=-vER(:,KK,1:NRHS)
+   else
+    CCL(2*KU+1:4*KU,1:NRHS)=wE(:,LL-1,1:NRHS) 
+   endif
    CCL(4*KU+1:6*KU,1:NRHS)=vE(:,LL-1,1:NRHS)
    CCL(6*KU+1:8*KU,1:NRHS)=uE(:,II-1,1:NRHS)   
-   
+      
    call DGESV(8*KU, NRHS , ACL, 8*KU, IPIV, CCL(:,1:NRHS), 8*KU, INFO ) ! overwrites CCL 
 !   call GaussJordan(8*KU, NRHS, ACL ,8*KU, CCL(:,1:NRHS), 8*KU, INFO )  ! overwrites CCL
-
-    if (info /= 0) then     
+    if (info /= 0) then         
      CALL XERBLA( 'DGESV ', INFO )
 !     CALL XERBLA( 'GAUSSJ ', INFO )     
 !     RETURN
@@ -452,83 +531,134 @@
       Bj(:,II,1:NRHS)=CCL(6*KU+1:8*KU,1:NRHS)   ! write Bii with RHS zII
 !     now generate w
       CC(1:4*KU,1:NRHS)=matmul(Z2WK,CCL(:,1:NRHS)) 
-      CCL(1:4*KU,1:NRHS)=matmul(Z2WL,CCL(:,1:NRHS))          
-      BBj(:,KK-1,1:NRHS)=CC(1:2*KU,1:NRHS)        
-      BBj(:,LL-1,1:NRHS)=CCL(1:2*KU,1:NRHS)         
-      BBj(:,KK,1:NRHS)=CC(2*KU+1:4*KU,1:NRHS)        
-      BBj(:,LL,1:NRHS)=CCL(2*KU+1:4*KU,1:NRHS)                 
+      if ( p == 0 ) then
+       CCL(1:4*KU,1:NRHS)=matmul(Z2WL,CCL(:,1:NRHS))          
+       BBj(:,KK-1,1:NRHS)=CC(1:2*KU,1:NRHS)        
+       BBj(:,LL-1,1:NRHS)=CCL(1:2*KU,1:NRHS)         
+       BBj(:,KK,1:NRHS)=CC(2*KU+1:4*KU,1:NRHS)
+      else
+       do hh=1,NRHS 
+        CC(1:2*KU,hh)=matmul(CC(1:2*KU,hh),matmul(ANK,JEXC2))
+        CC(2*KU+1:4*KU,hh)=matmul(CC(2*KU+1:4*KU,hh),matmul(ANK,JEXC2))
+       end do         
+       CCL(1:4*KU,1:NRHS)=matmul(Z2WL,CCL(:,1:NRHS))     
+       BCj(:,LL,1:NRHS)=CC(1:2*KU,1:NRHS)
+       BBj(:,LL-1,1:NRHS)=CCL(1:2*KU,1:NRHS)
+       BCj(:,LL-1,1:NRHS)=CC(2*KU+1:4*KU,1:NRHS)
+       BBj(:,LL,1:NRHS)=CCL(2*KU+1:4*KU,1:NRHS)
+      endif
     endif
 
     deallocate(ACL,CCL,CC)
-    deallocate(IDENT,IPIV,Z2WK,Z2WL,JEXC)    
-       
+    deallocate(IDENT,IPIV,Z2WK,Z2WL,JEXC)
+    if ( p /= 0 ) then
+     deallocate(JEXC2,ANK)    
+    endif       
     allocate(CC(2*KU,NRHS)) 
     CC = 0  
-       
+           
 !   BACKSUBSTITUTION z(j-1)=UE(j-1)+UD(:,:,j-1)*z(j) 
     do jj=LL-1,2,-1
 !     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UD(:,:,jj-1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
 !     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
-     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))
+     Bj(:,jj-1,1:NRHS)=UE(:,jj-1,1:NRHS)+matmul(UD(:,:,jj-1),Bj(:,jj,1:NRHS))           
     end do
-          
+    
+   if ( p == 0 ) then
 !   BACKSUBSTITUTION z(j+1)=UER(j+1)+UDR(:,:,j+1)*z(j) 
     do jj=KK,(N-p)/(2*KU)-1
 !     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UDR(:,:,jj+1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
 !     Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+CC(:,1:NRHS)
-     Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+matmul(UDR(:,:,jj+1),Bj(:,jj,1:NRHS))
-    end do    
-
+     Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+matmul(UDR(:,:,jj+1),Bj(:,jj,1:NRHS))      
+    end do 
+   else          
+!   BACKSUBSTITUTION z(j+1)=UER(j+1)+UDR(:,:,j+1)*z(j) 
+    do jj=KK,(N-p)/(2*KU)
+!     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,UDR(:,:,jj+1),2*KU,Bj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
+!     Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+CC(:,1:NRHS)
+     Bj(:,jj+1,1:NRHS)=UER(:,jj+1,1:NRHS)+matmul(UDR(:,:,jj+1),Bj(:,jj,1:NRHS))      
+    end do
+   endif
+   
 !   BACKSUBSTITUTION w(j-1)=VE(j-1)+VD(:,:,j-1)*w(j) 
     do jj=LL-1,2,-1
 !     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,VD(:,:,jj-1),2*KU,BBj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
 !     BBj(:,jj-1,1:NRHS)=VE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
-     BBj(:,jj-1,1:NRHS)=VE(:,jj-1,1:NRHS)+matmul(VD(:,:,jj-1),BBj(:,jj,1:NRHS))
+     BBj(:,jj-1,1:NRHS)=VE(:,jj-1,1:NRHS)+matmul(VD(:,:,jj-1),BBj(:,jj,1:NRHS))     
     end do
 
+   if ( p == 0 ) then
 !   BACKSUBSTITUTION w(j+1)=VER(j+1)+VDR(:,:,j+1)*w(j) 
     do jj=KK,(N-p)/(2*KU)-1
 !     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,VDR(:,:,jj+1),2*KU,BBj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
 !     BBj(:,jj+1,1:NRHS)=VER(:,jj+1,1:NRHS)+CC(:,1:NRHS)
      BBj(:,jj+1,1:NRHS)=VER(:,jj+1,1:NRHS)+matmul(VDR(:,:,jj+1),BBj(:,jj,1:NRHS))
-    end do 
-    
-    deallocate(CC,UD,UE,UDR,UER,VD,VE,VDR,VER) 
+    end do
+    deallocate(CC,UD,UE,UDR,UER,VD,VE,VDR,VER)
+   else
+!   BACKSUBSTITUTION w(j-1)=WE(j-1)+WD(:,:,j-1)*w(j) 
+    do jj=LL-1,2,-1
+!     call DGEMM('N','N',2*KU,NRHS,2*KU,1.0_wp,WD(:,:,jj-1),2*KU,BCj(:,jj,1:NRHS),2*KU,0.0_wp,CC(:,1:NRHS),2*KU)    
+!     BCj(:,jj-1,1:NRHS)=WE(:,jj-1,1:NRHS)+CC(:,1:NRHS)
+     BCj(:,jj-1,1:NRHS)=WE(:,jj-1,1:NRHS)+matmul(WD(:,:,jj-1),BCj(:,jj,1:NRHS))     
+    end do
+    deallocate(CC,UD,UE,UDR,UER,VD,VE,WE,WD)
+   endif
 
 !   overwrite RHS with solution Bj and BBj, direction irrelevant  
 !   Zero out B,BB
-    B(1:ldb,1:NRHS)=0 ; BB(1:ldb,1:NRHS)=0
+    B(1:ldb,1:NRHS)=0 ; BB(1:ldb,1:NRHS)=0 ; BC(1:ldb,1:NRHS)=0
     do jj=1,NRHS                       
      ii=(N-p)/(2*KU)+1          
-     do j=(N-p)/2+1,1,-KU            
+     do j=(N-p)/2+1,1,-KU           
       do i=1,KU
-        B(j+i-1,jj)=Bj(i,ii,jj)
-        if (ii .ne. LL .and. ii .ne. ll-1 .and. ii .ne. kk .and. ii .ne. kk-1) then ! these are the solved duplicates 
+        B(j+i-1,jj)=Bj(i,ii,jj)      
+        if (ii .ne. ll .and. ii .ne. ll-1 .and. ii .ne. kk .and. ii .ne. kk-1) then ! these are the solved duplicates 
          BB(j+i-1,jj)=BBj(i,ii,jj)                                                  ! from central equation above
+         if ( p /= 0 ) then
+          BC(j+i-1,jj)=BCj(i,ii,jj)                                                   
+         endif
         endif
       end do   
       do i=KU+1,2*KU
-       B(N-2*KU+i-j+1,jj)=Bj(i,ii,jj)
-       if (ii .ne. LL .and. ii .ne. ll-1 .and. ii .ne. kk .and. ii .ne. kk-1) then
+       B(N-2*KU+i-j+1,jj)=Bj(i,ii,jj)      
+       if (ii .ne. ll .and. ii .ne. ll-1 .and. ii .ne. kk .and. ii .ne. kk-1) then
         BB(N-2*KU+i-j+1,jj)=BBj(i,ii,jj)
+        if ( p /= 0 ) then
+         BC(N-2*KU+i-j+1,jj)=BCj(i,ii,jj)
+        endif
        endif
       end do
      ii=ii-1      
      end do        
     end do  ! end jj
+    
+!   Last p terms not part of Bj backsubstitution        
+!   If p > 2*KU for this case because p=mod(N,8*KU) not mod(N,2*KU)
+    if (p > 2*KU) then
+     do hh=1,NRHS            
+      B((N-p)/2+1:(N-p)/2+p,hh)=EEK(:,2*KU+hh)+matmul(EEK(:,1:2*KU),Bj(:,L2-1,hh))                         
+     end do      
+    end if    
 
 !  Rotate solution vector back (multiply BB by Asub{n}sup{n-k})
     k=(N-p)/4 !(n-k)
     BB(1:ldb,1:NRHS)=RotateColumns(BB,k)
     BB(1:ldb,1:NRHS)=ReverseColumns(BB)
+    if ( p /= 0 ) then
+     k=(N-p)/2 !(n-k)
+     BC(1:ldb,1:NRHS)=RotateColumns(BC,k)
+     BC(1:ldb,1:NRHS)=ReverseColumns(BC) 
+     k=(N-p)/4 !(n-k)
+     BC(1:ldb,1:NRHS)=RotateColumns(BC,k)
+     BC(1:ldb,1:NRHS)=ReverseColumns(BC)        
 !   Replace the missing values into B
-    B(1:ldb,1:NRHS)=B(1:ldb,1:NRHS)+BB(1:ldb,1:NRHS)  
-       
-   deallocate (BB,Bj,BBj)
-   
-   else  ! p .ne. 0
-    call DCBSV_4P( N, KU, NRHS, AB, LDAB, B, LDB, INFO )      ! try 4p version   
-   endif
+     B(1:ldb,1:NRHS)=B(1:ldb,1:NRHS)+BB(1:ldb,1:NRHS)+BC(1:ldb,1:NRHS)
+     deallocate(BC,BCj)
+    else
+     B(1:ldb,1:NRHS)=B(1:ldb,1:NRHS)+BB(1:ldb,1:NRHS)   
+    endif   
+   deallocate (BB,Bj,BBj,EEK)
         
   END SUBROUTINE dcbsv_4
   
