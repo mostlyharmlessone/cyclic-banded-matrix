@@ -491,7 +491,7 @@
 !  LAST EQUATIONS
    allocate(ACL(8*KU,8*KU),CCL(8*KU,NRHS),CC(8*KU,NRHS))
    ACL = 0 ; CCL = 0 ; CC =0
-     
+        
    ACL(1:2*KU,1:2*KU)=udR(:,:,JJ)
    ACL(1:2*KU,4*KU+1:6*KU)=-IDENT  
    if ( p == 0 ) then
