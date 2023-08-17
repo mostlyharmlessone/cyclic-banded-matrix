@@ -2,7 +2,7 @@ subroutine forward_loop(p, L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
   Use lapackinterface
   IMPLICIT NONE   
 !  PURPOSE forward iterative loop
-!  Copyright (c) 2021   Anthony M de Beus
+!  Copyright (c) 2021-2023   Anthony M de Beus
    INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
 
 !  .. Scalar Arguments ..
@@ -23,15 +23,15 @@ subroutine forward_loop(p, L, N, KU, LB, Bj,Cj,Pj,Sj, NRHS, INFO, LU ,UD,UE, LL)
 !! FORWARD   
 !  ALL BUT THE LAST EQUATION, GENERATE UD & UE  ! (Cj+Sj*A(:,:,j-1))*A(:,:,j)=-Pj 
    do jj=1,(N-p)/(2*KU)-L
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
-    A=Cj(:,:,jj)+AA
-!    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))        
+!    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
+!    A=Cj(:,:,jj)+AA
+    A=Cj(:,:,jj)+matmul(Sj(:,:,jj),UD(:,:,jj-1))        
 !   concatenate Aj and vj solutions onto EE        
      EE(:,1:2*KU)=-Pj(:,:,jj)
      do hh=1,NRHS
-      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1) 
-      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
-!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
+!      call DGEMV('N',2*KU,2*KU,1.0_wp,Sj(:,:,jj),2*KU,UE(:,jj-1,hh),1,0.0_wp,CC(:,hh),1) 
+!      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
+      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Sj(:,:,jj),UE(:,jj-1,hh))
      end do
 !    compute next UD,UE using factored A
     call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 

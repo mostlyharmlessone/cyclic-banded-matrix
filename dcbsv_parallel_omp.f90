@@ -2,7 +2,7 @@
    Use lapackinterface 
    USE OMP_LIB      
    IMPLICIT NONE
-!   Copyright (c) 2021   Anthony M de Beus
+!   Copyright (c) 2021-2023   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
 !   using an O(N*KU) algorithm 
 

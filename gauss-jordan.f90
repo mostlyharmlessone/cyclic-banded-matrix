@@ -75,7 +75,7 @@
       do k=1,N
        if (ipiv(k) > 1) then
         info=ipiv(k)
-        write(*,*) 'GaussJordan reports a Singular matrix'   
+        write(*,*) 'GaussJordan reports a singular matrix'   
         RETURN
        endif
        if(ipiv(k) == 1) then 

@@ -2,7 +2,7 @@
   Use lapackinterface
   IMPLICIT NONE   
 !  PURPOSE backward iterative loop
-!  Copyright (c) 2021   Anthony M de Beus
+!  Copyright (c) 2021-2023   Anthony M de Beus
    INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
 
 !  .. Scalar Arguments ..
@@ -25,15 +25,15 @@
 !! BACKWARD       
 !  ALL BUT THE LAST EQUATION, GENERATE UDR & UER  ! (Cj+Pj*A(:,:,j+1))*A(:,:,j)=-Sj
     do jj=(N-p)/(2*KU),L+1,-1     
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UDR(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
-    A=Cj(:,:,jj)+AA
-!    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UDR(:,:,jj+1))        
+!    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UDR(:,:,jj+1),2*KU,0.0_wp,AA,2*KU)
+!    A=Cj(:,:,jj)+AA
+    A=Cj(:,:,jj)+matmul(Pj(:,:,jj),UDR(:,:,jj+1))        
 !   concatenate Aj and vj solutions onto EE        
      EE(:,1:2*KU)=-Sj(:,:,jj)
      do hh=1,NRHS
-      call DGEMV('N',2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UER(:,jj+1,hh),1,0.0_wp,CC(:,hh),1) 
-      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
-!      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Pj(:,:,jj),UER(:,jj+1,hh))
+!      call DGEMV('N',2*KU,2*KU,1.0_wp,Pj(:,:,jj),2*KU,UER(:,jj+1,hh),1,0.0_wp,CC(:,hh),1) 
+!      EE(:,2*KU+hh)=Bj(:,jj,hh)-CC(:,hh)     
+      EE(:,2*KU+hh)=Bj(:,jj,hh)-matmul(Pj(:,:,jj),UER(:,jj+1,hh))
      end do
 !    compute next UD,UE using factored A
     call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 

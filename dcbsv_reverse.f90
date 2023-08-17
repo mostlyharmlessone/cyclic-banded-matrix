@@ -1,7 +1,7 @@
    SUBROUTINE DCBSV_R( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
    Use lapackinterface  
    IMPLICIT NONE
-!   Copyright (c) 2021   Anthony M de Beus
+!   Copyright (c) 2021-2023   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
 !   using an O(N*KU) algorithm 
 
@@ -285,7 +285,7 @@
     allocate(A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),CCL(2*KU,NRHS))
           
 !  LAST EQUATION in reverse jj=1  so BjL=Bj(:,1,1:NRHS); CjL=Cj(:,:,1)+matmul(Sj(:,:,1),ud(:,:,0))
-!  DGEMM 269 & 290 argument B (UE and B)
+!  DGEMM argument B (UE and B)
 !  https://www.cita.utoronto.ca/~merz/intel_f10b/main_for/mergedProjects/optaps_for/fortran/optaps_prg_arrs_f.htm
 !  assumed-shape array or array pointer to an explicit-shape array can slow run-time performance. 
 !  This is because the compiler needs to create an array temporary for the entire array. 

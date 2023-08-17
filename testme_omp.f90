@@ -5,17 +5,17 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=96001 ! size of problem
-    INTEGER, PARAMETER :: KU=107 !358 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=0 !358   ! for testing vs lapack version only
+    INTEGER, PARAMETER :: n=70000 ! size of problem
+    INTEGER, PARAMETER :: KU=281!281 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=0!281   ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp), ALLOCATABLE :: d(:,:),a(:),b(:),c(:),s(:,:),dd(:,:),z(:,:),zz(:,:),a_short(:) ! a_short truncated a() for dgtsv    
     REAL(wp), ALLOCATABLE :: AB(:,:),CD(:,:)                ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv 
                                                             ! CD(KL+KU+1+i-j,j) for dgbsv
-    REAL(wp) :: time_end,time_start                     
+    REAL(wp) :: time_end,time_start,max_error                    
     INTEGER :: i,j,p,INFO
     INTEGER, ALLOCATABLE :: ipiv(:)
-!   Copyright (c) 2021   Anthony M de Beus
+!   Copyright (c) 2021-2023   Anthony M de Beus
 
 !   only runs tridiagonal routines dctsv.f90, dgtsv.f90 or thomas.f90 if KU=1
 !   only runs non-periodic lapack routines dgbsv and/or dgtsv if KL > 0 (and in fact KL=KU) 
@@ -92,7 +92,7 @@
     AB=0
     CD=0
     p=mod(N,2*KU)
-    write(*,*) 'p,KU,(N-p)/2KU: ',p,KU,(n-p)/(2*KU)
+    write(*,*) 'p,mod(N,8*KU),KU,(N-p)/2KU: ',p,mod(N,8*KU),KU,(n-p)/(2*KU)
 
     do i=-KU,KU                                ! generate AB in band-cyclic format
      do j=1,n
@@ -149,6 +149,20 @@
     write(*,*) 'time: ',time_end-time_start
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
+    z=multiply(AB,d(:,:))
+    write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
+    write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
+    write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
+    write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))    
+    max_error=0
+    do i=1,n
+     do j=1,4
+     if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
+      max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+     endif
+     end do
+    end do
+    write(*,*) 'Max absolute percent error',100*max_error
     write(*,*) ' '
 
 
@@ -162,6 +176,20 @@
       write(*,*) 'time: ',time_end-time_start
       write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
       write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
+      z=multiply(AB,d(:,:))
+      write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
+      write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
+      write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
+      write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
+      max_error=0
+      do i=1,n
+       do j=1,4
+       if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
+        max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+       endif
+       end do
+      end do
+      write(*,*) 'Max absolute percent error',100*max_error      
       write(*,*) ' '
       
 !     simple tridiagonal algorithm: should be fastest with -O3 compilation
@@ -172,10 +200,25 @@
       write(*,*) 'Using thomas, O(n)'        
       time_start=omp_get_wtime()
       call thomas(a,b,c,d,z,n,4)                        ! overwrites b and d, output is z           
-      time_end=omp_get_wtime()    
+      time_end=omp_get_wtime() 
+      d=z                                               ! overwrite d with z
       write(*,*) 'time: ',time_end-time_start
-      write(*,*) 'solution error',dot_product((s(:,1)-z(:,1)),(s(:,1)-z(:,1))) 
-      write(*,*) 'solution error',dot_product((s(:,2)-z(:,2)),(s(:,2)-z(:,2)))
+      write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1))) 
+      write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
+      z=multiply(AB,d(:,:))
+      write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
+      write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
+      write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
+      write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
+      max_error=0
+      do i=1,n
+       do j=1,4
+       if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
+        max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+       endif
+       end do
+      end do
+      write(*,*) 'Max absolute percent error',100*max_error      
       write(*,*) ' '
           
      endif
@@ -197,6 +240,15 @@
     write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
     write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
     write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
+    max_error=0
+    do i=1,n
+     do j=1,4
+     if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
+      max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+     endif
+     end do
+    end do
+    write(*,*) 'Max absolute percent error',100*max_error    
     write(*,*) ' '
    
     d=dd
@@ -214,6 +266,20 @@
     write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
     write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
     write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
+    max_error=0
+    do i=1,n
+     do j=1,4
+     if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
+      max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+      
+      if (max_error > 0.1 ) then
+       write(*,*) s(i,j),d(i,j)
+      end if
+      
+     endif
+     end do
+    end do
+    write(*,*) 'Max absolute percent error',100*max_error
     write(*,*) ' '
     
      d=dd
@@ -231,6 +297,15 @@
     write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
     write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
     write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
+    max_error=0
+    do i=1,n
+     do j=1,4
+     if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
+      max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+     endif
+     end do
+    end do
+    write(*,*) 'Max absolute percent error',100*max_error    
     write(*,*) ' '   
 
      d=dd
@@ -242,13 +317,26 @@
     write(*,*) 'solution error',dot_product((s(:,1)-d(:,1)),(s(:,1)-d(:,1)))/dot_product(s(:,1),s(:,1)) 
     write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))/dot_product(s(:,2),s(:,2))
     write(*,*) 'solution error',dot_product((s(:,3)-d(:,3)),(s(:,3)-d(:,3)))/dot_product(s(:,3),s(:,3)) 
-    write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))   
-          
+    write(*,*) 'solution error',dot_product((s(:,4)-d(:,4)),(s(:,4)-d(:,4)))/dot_product(s(:,4),s(:,4))             
     z=multiply(AB,d(:,:))
     write(*,*) 'RHS error',dot_product(z(:,1)-dd(:,1),z(:,1)-dd(:,1))/dot_product(dd(:,1),dd(:,1))
     write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
     write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
     write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
+    max_error=0
+    do i=1,n
+     do j=1,4
+     if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
+      max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+      
+      if (max_error > 0.1) then
+       write(*,*) s(i,j),d(i,j)
+      end if
+      
+     endif
+     end do
+    end do
+    write(*,*) 'Max absolute percent error',100*max_error
     write(*,*) ' ' 
       
            
@@ -269,6 +357,15 @@
       write(*,*) 'RHS error',dot_product(z(:,2)-dd(:,2),z(:,2)-dd(:,2))/dot_product(dd(:,2),dd(:,2))
       write(*,*) 'RHS error',dot_product(z(:,3)-dd(:,3),z(:,3)-dd(:,3))/dot_product(dd(:,3),dd(:,3)) 
       write(*,*) 'RHS error',dot_product(z(:,4)-dd(:,4),z(:,4)-dd(:,4))/dot_product(dd(:,4),dd(:,4))
+      max_error=0
+      do i=1,n
+       do j=1,4
+       if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
+        max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+       endif
+       end do
+      end do
+      write(*,*) 'Max absolute percent error',100*max_error
       write(*,*) ' '
      endif
           

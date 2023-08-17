@@ -14,9 +14,9 @@ They are written to be reasonably easily incorporated into code using [LAPACK (U
 Both use XERBLA error reporting and require linking with LAPACK & BLAS. 
 Removing XERBLA from dctsv.f90 removes the LAPACK/BLAS dependency.
 
-Removing the LAPACK/BLAS dependency in dcbsv requires substitution by intrinsic Fortran array operators instead of LAPACK & BLAS calls and substitution of LAPACK's dgesv.f  & dgetr(fsi).f by another suitable general matrix solver (e.g. the included admittedly slower O(N^3) gauss-jordan.f90).  The intrinsic operators and calls to the alternate matrix solver are commented out immediately after their respective LAPACK calls, making it easy to switch.
+Removing the LAPACK/BLAS dependency in dcbsv requires substitution by intrinsic Fortran array operators instead of LAPACK & BLAS calls (done already by default) and substitution of LAPACK's dgesv.f  & dgetr(fsi).f by another suitable general matrix solver (e.g. the included admittedly slower O(N^3) gauss-jordan.f90), not done by default.  The intrinsic operators and calls to the alternate matrix solver are immediately after their respective commented out LAPACK calls, making it easy to switch.
 
-The algorithm can be run forwards or backwards, with dcbsv_forward.f90, dcbsv_reverse.f90, or both simultaneously using OpenMP with dcbsv_parallel_omp.f90.   The parallel OMP versions can be nearly twice as fast as the non parallel versions depending on the parameters.
+The algorithm can be run forwards or backwards, with dcbsv_forward.f90, dcbsv_reverse.f90, or both simultaneously using OpenMP with dcbsv_parallel_omp.f90.   The parallel OMP versions can be nearly twice as fast as the non parallel versions depending on the parameters.  There is also a 4-way parallel solver dcbsv_4x4parallel_omp.f90, which is faster in certain problems.
 
 A fortran 90 module LapackInterface.f90 is included for compatibility with FORTRAN 77. Note that the module only needs to be compiled once and is only needed for LAPACK/BLAS compatibility.
 
@@ -43,12 +43,14 @@ Two simple test programs are included, testme.f90 using full matrix routines as 
 
 Using gfortran/ifort/nvfortran
 ```
+non-parallel version, gfortran instructions
+
 gfortran -c LapackInterface.f90 AB_matrix_fct.f90
 gfortran testme.f90 dctsv.f90 dcbsv_forward.f90 dcbsv_reverse.f90 forward_loop.f90 backward_loop.f90 gauss-jordan.f90 -llapack -lblas
 
 parallel versions with OpenMP, different compilers
 
-gfortran -fopenmp -O3 testme_omp.f90 dcbsv_parallel_omp.f90 dcbsv_forward.f90 dcbsv_reverse.f90 dctsv_parallel_omp.f90 forward_loop.f90 backward_loop.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 -llapack -lblas
+gfortran -fopenmp -O3 testme_omp.f90 dcbsv_4x4parallel_omp.f90 dcbsv_parallel_omp.f90 dcbsv_forward.f90 dcbsv_reverse.f90 dctsv_parallel_omp.f90 forward_loop.f90 backward_loop.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 -llapack -lblas
 
 ifort -qopenmp -shared-intel testme_omp.f90 dcbsv_parallel_omp.f90 dcbsv_4x4parallel_omp.f90 dcbsv_forward.f90 dcbsv_reverse.f90 dctsv_parallel_omp.f90 forward_loop.f90 backward_loop.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 gauss-jordan.f90 -llapack -lblas
 
@@ -62,6 +64,8 @@ Alternatively,
   ./testme_cyclic 
   ./testme_cyclic_omp
 ```
+
+gfortran is used as the default compiler with cmake, but ifort or nvfortran are easily configured.
 
 ## Contributing
 

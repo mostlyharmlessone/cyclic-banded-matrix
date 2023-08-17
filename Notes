@@ -1,0 +1,16 @@
+Notes on the 2023 update.
+
+Since 2021 there has been some code clean up, with one or two bug fixes.  
+
+All but the matrix solution and error reporting LAPACK has been commented out and replaced with intrinsic matmul operations; the compiler can decide to use lapack or not. :)  One issue found was that one of the DGEMM calls violated the following:
+!  DGEMM argument B (UE and B)
+!  https://www.cita.utoronto.ca/~merz/intel_f10b/main_for/mergedProjects/optaps_for/fortran/optaps_prg_arrs_f.htm
+!  assumed-shape array or array pointer to an explicit-shape array can slow run-time performance. 
+!  This is because the compiler needs to create an array temporary for the entire array. 
+!  The array temporary is created because the passed array may not be contiguous 
+!  and the receiving (explicit-shape) array requires a contiguous array.
+
+A new routine with 4 way parallelism has been added for the general case, it is documented in band_matrix.pdf
+
+A Cmake file is now included.
+

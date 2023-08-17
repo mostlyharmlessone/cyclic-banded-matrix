@@ -4,6 +4,7 @@ cmake_policy(VERSION 3.16)
 project(test_cyclic VERSION 0.1.0 LANGUAGES Fortran)
 enable_language(Fortran)
 
+# pick a compiler, last listed is the one
 set (CMAKE_Fortran_COMPILER "ifort")
 set (CMAKE_Fortran_COMPILER "nvfortran")
 set (CMAKE_Fortran_COMPILER "gfortran")
@@ -36,8 +37,8 @@ if(CMAKE_Fortran_COMPILER MATCHES "nvfortran")
     set(omp "-mp")    
 endif()
 
-#set(CMAKE_BUILD_TYPE RELEASE) # no debug or bounds check
-set(CMAKE_BUILD_TYPE DEBUG) #this include debugging with addition of bounds flags as specified below
+set(CMAKE_BUILD_TYPE RELEASE) # no debug or bounds check
+#set(CMAKE_BUILD_TYPE DEBUG) #this include debugging with addition of bounds flags as specified below
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_RELEASE} ${optimize}")

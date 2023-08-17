@@ -607,7 +607,10 @@
 
 !   overwrite RHS with solution Bj and BBj, direction irrelevant  
 !   Zero out B,BB
-    B(1:ldb,1:NRHS)=0 ; BB(1:ldb,1:NRHS)=0 ; BC(1:ldb,1:NRHS)=0
+    B(1:ldb,1:NRHS)=0 ; BB(1:ldb,1:NRHS)=0 
+    if (p /= 0 ) then
+     BC(1:ldb,1:NRHS)=0
+    endif
     do jj=1,NRHS                       
      ii=(N-p)/(2*KU)+1          
      do j=(N-p)/2+1,1,-KU           
@@ -654,11 +657,11 @@
      BC(1:ldb,1:NRHS)=ReverseColumns(BC)        
 !   Replace the missing values into B
      B(1:ldb,1:NRHS)=B(1:ldb,1:NRHS)+BB(1:ldb,1:NRHS)+BC(1:ldb,1:NRHS)
-     deallocate(BC,BCj)
+     deallocate(BC,BCj,EEK)
     else
      B(1:ldb,1:NRHS)=B(1:ldb,1:NRHS)+BB(1:ldb,1:NRHS)   
     endif   
-   deallocate (BB,Bj,BBj,EEK)
+   deallocate (BB,Bj,BBj)
         
   END SUBROUTINE dcbsv_4
   

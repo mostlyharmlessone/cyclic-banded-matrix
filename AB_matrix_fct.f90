@@ -1,3 +1,5 @@
+!  PURPOSE condensed band matrix functions
+!  Copyright (c) 2021-2023   Anthony M de Beus
 module AB_matrix_fct
 
 contains 

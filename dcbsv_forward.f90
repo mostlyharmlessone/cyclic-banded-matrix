@@ -1,7 +1,7 @@
    SUBROUTINE DCBSV_F( N, KU, NRHS, AB, LDAB, B, LDB, INFO )
    Use lapackinterface  
    IMPLICIT NONE
-!   Copyright (c) 2021   Anthony M de Beus
+!   Copyright (c) 2021-2023   Anthony M de Beus
 !   PURPOSE solves the cyclic/periodic general banded system, see LAPACK routine DGBSV by contrast
 !   using an O(N*KU) algorithm 
 
@@ -141,7 +141,7 @@
      write(*,*) 'Memory allocation failed'
      stop
     endif    
-!
+
 !  Initialize
    Bj=0;   Cj=0;   Pj=0;  Sj=0   
    jj=0  !index of number of arrays       
@@ -242,11 +242,11 @@
 !    call DGEMM('N','N',2*KU+p,NRHS,2*KU,1.0_wp,IDENTS,2*KU+p,CC(:,1:NRHS),2*KU,0.0_wp,CCL(:,1:NRHS),2*KU+p)        
 !    CCL(:,1:NRHS)=BjL(:,1:NRHS)-CCL(:,1:NRHS)
     CCL(:,1:NRHS)=BjL(:,1:NRHS)-matmul(IDENTS,matmul(SjL,UE(:,jj-1,1:NRHS)))    
-    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,SjL,2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
-    call DGEMM('N','T',2*KU,2*KU+p,2*KU,1.0_wp,AA,2*KU,IDENTS,2*KU+p,0.0_wp,BL,2*KU)
-    call DGEMM('N','N',2*KU+p,2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,BL,2*KU,0.0_wp,AAL,2*KU+p)
-    AAL=CjL+AAL
-!    AAL=CjL+matmul(IDENTS,matmul(matmul(SjL,UD(:,:,jj-1)),Transpose(IDENTS)))   
+!    call DGEMM('N','N',2*KU,2*KU,2*KU,1.0_wp,SjL,2*KU,UD(:,:,jj-1),2*KU,0.0_wp,AA,2*KU)
+!    call DGEMM('N','T',2*KU,2*KU+p,2*KU,1.0_wp,AA,2*KU,IDENTS,2*KU+p,0.0_wp,BL,2*KU)
+!    call DGEMM('N','N',2*KU+p,2*KU+p,2*KU,1.0_wp,IDENTS,2*KU+p,BL,2*KU,0.0_wp,AAL,2*KU+p)
+!    AAL=CjL+AAL
+    AAL=CjL+matmul(IDENTS,matmul(matmul(SjL,UD(:,:,jj-1)),Transpose(IDENTS)))   
     call DGESV(2*KU+p, NRHS , AAL, 2*KU+p, IPIV, CCL(:,1:NRHS), 2*KU+p, INFO ) ! overwrites CCL
 !    call GaussJordan( 2*KU+p, NRHS, AAL ,2*KU+p, CCL(:,1:NRHS), 2*KU+p, INFO )  ! overwrites CCL        
     if (info /= 0) then        
