@@ -5,9 +5,9 @@
 !   only runs with banded matrix routines to allow for larger n    
     IMPLICIT NONE
     INTEGER, PARAMETER :: wp = KIND(0.0D0) ! working precision
-    INTEGER, PARAMETER :: n=70000 ! size of problem
-    INTEGER, PARAMETER :: KU=281!281 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
-    INTEGER, PARAMETER :: KL=0!281   ! for testing vs lapack version only
+    INTEGER, PARAMETER :: n=90000 ! size of problem
+    INTEGER, PARAMETER :: KU=381 ! bandwidth of matrix, KU=1 for dctsv.f90  KU>1 needs dcbsv.f90
+    INTEGER, PARAMETER :: KL=0!381   ! for testing vs lapack version only
                                 ! KL=KU to run non-periodic version of matrix KL=0 runs periodic version
     REAL(wp), ALLOCATABLE :: d(:,:),a(:),b(:),c(:),s(:,:),dd(:,:),z(:,:),zz(:,:),a_short(:) ! a_short truncated a() for dgtsv    
     REAL(wp), ALLOCATABLE :: AB(:,:),CD(:,:)                ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv 
@@ -157,12 +157,12 @@
     max_error=0
     do i=1,n
      do j=1,4
-     if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
-      max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+     if (ABS(s(i,j)-d(i,j)) > max_error) then 
+      max_error=ABS(s(i,j)-d(i,j))
      endif
      end do
     end do
-    write(*,*) 'Max absolute percent error',100*max_error
+    write(*,*) 'Max absolute error',max_error
     write(*,*) ' '
 
 
@@ -184,12 +184,12 @@
       max_error=0
       do i=1,n
        do j=1,4
-       if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
-        max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+       if (ABS(s(i,j)-d(i,j)) > max_error) then 
+        max_error=ABS(s(i,j)-d(i,j))
        endif
        end do
       end do
-      write(*,*) 'Max absolute percent error',100*max_error      
+      write(*,*) 'Max absolute error',max_error      
       write(*,*) ' '
       
 !     simple tridiagonal algorithm: should be fastest with -O3 compilation
@@ -213,12 +213,12 @@
       max_error=0
       do i=1,n
        do j=1,4
-       if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
-        max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+       if (ABS(s(i,j)-d(i,j)) > max_error) then 
+        max_error=ABS(s(i,j)-d(i,j))
        endif
        end do
       end do
-      write(*,*) 'Max absolute percent error',100*max_error      
+      write(*,*) 'Max absolute error',max_error      
       write(*,*) ' '
           
      endif
@@ -243,12 +243,12 @@
     max_error=0
     do i=1,n
      do j=1,4
-     if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
-      max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+     if (ABS(s(i,j)-d(i,j)) > max_error) then 
+      max_error=ABS(s(i,j)-d(i,j))
      endif
      end do
     end do
-    write(*,*) 'Max absolute percent error',100*max_error    
+    write(*,*) 'Max absolute error',max_error    
     write(*,*) ' '
    
     d=dd
@@ -269,17 +269,12 @@
     max_error=0
     do i=1,n
      do j=1,4
-     if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
-      max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
-      
-      if (max_error > 0.1 ) then
-       write(*,*) s(i,j),d(i,j)
-      end if
-      
+     if (ABS(s(i,j)-d(i,j)) > max_error) then 
+      max_error=ABS(s(i,j)-d(i,j))
      endif
      end do
     end do
-    write(*,*) 'Max absolute percent error',100*max_error
+    write(*,*) 'Max absolute error',max_error
     write(*,*) ' '
     
      d=dd
@@ -300,12 +295,12 @@
     max_error=0
     do i=1,n
      do j=1,4
-     if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
-      max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+     if (ABS(s(i,j)-d(i,j)) > max_error) then 
+      max_error=ABS(s(i,j)-d(i,j))
      endif
      end do
     end do
-    write(*,*) 'Max absolute percent error',100*max_error    
+    write(*,*) 'Max absolute error',max_error    
     write(*,*) ' '   
 
      d=dd
@@ -326,17 +321,12 @@
     max_error=0
     do i=1,n
      do j=1,4
-     if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
-      max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
-      
-      if (max_error > 0.1) then
-       write(*,*) s(i,j),d(i,j)
-      end if
-      
+     if (ABS(s(i,j)-d(i,j)) > max_error) then 
+      max_error=ABS(s(i,j)-d(i,j))
      endif
      end do
     end do
-    write(*,*) 'Max absolute percent error',100*max_error
+    write(*,*) 'Max absolute error',max_error
     write(*,*) ' ' 
       
            
@@ -360,12 +350,12 @@
       max_error=0
       do i=1,n
        do j=1,4
-       if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
-        max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+       if (ABS(s(i,j)-d(i,j)) > max_error) then 
+        max_error=ABS(s(i,j)-d(i,j))
        endif
        end do
       end do
-      write(*,*) 'Max absolute percent error',100*max_error
+      write(*,*) 'Max absolute error',max_error
       write(*,*) ' '
      endif
           

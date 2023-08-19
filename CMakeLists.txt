@@ -1,13 +1,13 @@
-cmake_minimum_required(VERSION 3.16)
-cmake_policy(VERSION 3.16)
+cmake_minimum_required(VERSION 3.26)
+cmake_policy(VERSION 3.26)
+
+# pick a compiler, you might need to export FC=ifort or gfortran or nvfortran prior to running with a clean tree
+set (CMAKE_Fortran_COMPILER "ifort")
+#set (CMAKE_Fortran_COMPILER "nvfortran")
+#set (CMAKE_Fortran_COMPILER "gfortran")
 
 project(test_cyclic VERSION 0.1.0 LANGUAGES Fortran)
 enable_language(Fortran)
-
-# pick a compiler, last listed is the one
-set (CMAKE_Fortran_COMPILER "ifort")
-set (CMAKE_Fortran_COMPILER "nvfortran")
-set (CMAKE_Fortran_COMPILER "gfortran")
 
 # should read again how to manage compiler flags with Cmake
 if(CMAKE_Fortran_COMPILER MATCHES "gfortran")
@@ -44,27 +44,28 @@ set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_RELEASE} ${optimize}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${omp}")
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${NaN}")
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${type}")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_DEBUG} ${type}")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_DEBUG} ${FC}")
 
 set_property(GLOBAL PROPERTY GLOBAL_DEPENDS_DEBUG_MODE 0) #set to 1 to show dependencies
-
 set (CMAKE_PREFIX_PATH "/usr/local")
-
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
+set(CMAKE_FIND_DEBUG_MODE TRUE)
 find_package(BLAS)
  if ( BLAS_FOUND )
   message(STATUS "BLAS found at ${BLAS_LIBRARIES}")
  else()
-  set(BLAS_LIBRARIES "/usr/local/lib/libblas.so")
+  set(BLAS_LIBRARIES "/usr/lib/libblas.so")
  endif()
+set(CMAKE_FIND_DEBUG_MODE FALSE) 
+ 
 find_package(LAPACK)
  if ( LAPACK_FOUND )
   message(STATUS "LAPACK found at ${LAPACK_LIBRARIES}")
  else()
-  set(LAPACK_LIBRARIES "/usr/lib/i386-linux-gnu/lapack/liblapack.so.3")
+  set(LAPACK_LIBRARIES "/usr/lib/liblapack.so.3")
  endif()
 find_package(OpenMP)
 
