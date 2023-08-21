@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.26)
 cmake_policy(VERSION 3.26)
 
-# pick a compiler, you might need to export FC=ifort or gfortran or nvfortran prior to running with a clean tree
-set (CMAKE_Fortran_COMPILER "ifort")
-#set (CMAKE_Fortran_COMPILER "nvfortran")
-#set (CMAKE_Fortran_COMPILER "gfortran")
-
 project(test_cyclic VERSION 0.1.0 LANGUAGES Fortran)
 enable_language(Fortran)
 
+# pick a compiler, you might need to export FC=ifort or gfortran or nvfortran prior to running with a clean tree
+#set (CMAKE_Fortran_COMPILER "ifort")
+#set (CMAKE_Fortran_COMPILER "nvfortran")
+set (CMAKE_Fortran_COMPILER_ID "gfortran")
+
 # should read again how to manage compiler flags with Cmake
-if(CMAKE_Fortran_COMPILER MATCHES "gfortran")
+if(CMAKE_Fortran_COMPILER_ID MATCHES "gfortran")
     set(FC "gfortran")
     set(dialect "-ffree-form -std=f2008 -fexternal-blas -fno-optimize-sibling-calls") #gfortran/lapack/blas bug?
     set(bounds "-Wall -Wextra -Wimplicit-interface -fcheck=all -fbacktrace -fbounds-check -g")
@@ -22,7 +22,7 @@ if(CMAKE_Fortran_COMPILER MATCHES "gfortran")
 #     set(-g -coverage) 
     set(optimize "-O3 -march=native -ffast-math -funroll-loops")    
 endif()
-if(CMAKE_Fortran_COMPILER MATCHES "ifort")
+if(CMAKE_Fortran_COMPILER_ID MATCHES "ifort")
     set(FC "ifort")
     set(dialect "-stand f08 -free -implicitnone")
     set(type "-shared-intel")
@@ -30,7 +30,7 @@ if(CMAKE_Fortran_COMPILER MATCHES "ifort")
     set(omp "-qopenmp")   
 endif()
 #  nvfortran==pgi
-if(CMAKE_Fortran_COMPILER MATCHES "nvfortran")
+if(CMAKE_Fortran_COMPILER_ID MATCHES "nvfortran")
     set(FC "nvfortran")
     set(dialect "-Mfreeform -Mdclchk -Mstandard -Mallocatable=03")
     set(bounds "-Mbounds -g")
@@ -39,27 +39,25 @@ endif()
 
 set(CMAKE_BUILD_TYPE RELEASE) # no debug or bounds check
 #set(CMAKE_BUILD_TYPE DEBUG) #this include debugging with addition of bounds flags as specified below
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}")
+#set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_RELEASE} ${optimize}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${omp}")
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${NaN}")
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_DEBUG} ${type}")
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_DEBUG} ${FC}")
+#set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${NaN}")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${type}")
+#set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${FC}")
 
 set_property(GLOBAL PROPERTY GLOBAL_DEPENDS_DEBUG_MODE 0) #set to 1 to show dependencies
 set (CMAKE_PREFIX_PATH "/usr/local")
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
-set(CMAKE_FIND_DEBUG_MODE TRUE)
-find_package(BLAS)
+find_package(BLAS )
  if ( BLAS_FOUND )
   message(STATUS "BLAS found at ${BLAS_LIBRARIES}")
  else()
   set(BLAS_LIBRARIES "/usr/lib/libblas.so")
  endif()
-set(CMAKE_FIND_DEBUG_MODE FALSE) 
  
 find_package(LAPACK)
  if ( LAPACK_FOUND )
