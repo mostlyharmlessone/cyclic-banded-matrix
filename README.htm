@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Cyclic-banded-matrix</title>
+        <meta charset='utf-8'/>
+        <link rel="stylesheet" type="text/css" href="./README.htm_files/github-markdown.css">
+        <style>
+            .markdown-body {
+                box-sizing: border-box;
+                min-width: 200px;
+                max-width: 980px;
+                margin: 0 auto;
+                padding: 45px;
+            }
+        </style>
+        <script>
+            window.onload = function() {
+                if (document.querySelector("script[type=\"math/tex; mode=display\"]") !== null) {
+                    var mathjax = document.createElement("script");
+                    mathjax.src = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML";
+                    document.head.appendChild(mathjax);
+                }
+                if (document.getElementsByTagName("code").length !== 0) {
+                    var highlight = document.createElement("script");
+                    var highlightcss = document.createElement("link");
+                    highlight.src = "http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.2.0/highlight.min.js";
+                    highlightcss.rel = "stylesheet";
+                    highlightcss.href = "http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.2.0/styles/github.min.css";
+                    highlight.onload = function() {hljs.initHighlighting();};
+                    document.head.appendChild(highlight);
+                    document.head.appendChild(highlightcss);
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <article class="markdown-body">
+            <h1 id="cyclic-banded-matrix">Cyclic-banded-matrix</h1>
+<p>Cyclic-banded-matrix is fortran 90+ source code for solving a system Ax=b with A represented by a cyclic band matrix, aka periodic band matrix, or cyclic/periodic banded matrix. These are all square matrices, and arise from problems with periodic boundary conditions.</p>
+<p>The algorithm is detailed in <a href="https://github.com/mostlyharmlessone/cyclic-banded-matrix/blob/main/band_matrix.pdf">band_matrix.pdf</a>.  I have not found any previous version of this algorithm and it is entirely my derivation. If I have reinvented the wheel, there being nothing new under the sun, it would be interesting to see the previous attribution.</p>
+<p>The error rate increases more rapidly with N than an LU decomposition, but is O(N*KU) in speed.  The matrix needs to be diagonally dominant.</p>
+<h2 id="usage">Usage</h2>
+<p>Two routines are included, dctsv.f90 which solves periodic tridiagonal systems, and dcbsv.f90, which solves general banded periodic matrices.
+They are written to be reasonably easily incorporated into code using <a href="http://www.netlib.org/lapack/">LAPACK (Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd.November 2006)</a> and the interfaces have been deliberately made as compatible as possible with their non-cyclic LAPACK counterparts dgbsv.f and dgtsv.f</p>
+<p>Both use XERBLA error reporting and require linking with LAPACK &amp; BLAS. 
+Removing XERBLA from dctsv.f90 removes the LAPACK/BLAS dependency.</p>
+<p>Removing the LAPACK/BLAS dependency in dcbsv requires substitution by intrinsic Fortran array operators instead of LAPACK &amp; BLAS calls (done already by default) and substitution of LAPACK&#39;s dgesv.f  &amp; dgetr(fsi).f by another suitable general matrix solver (e.g. the included admittedly slower O(N^3) gauss-jordan.f90), not done by default.  The intrinsic operators and calls to the alternate matrix solver are immediately after their respective commented out LAPACK calls, making it easy to switch.</p>
+<p>The algorithm can be run forwards or backwards, with dcbsv_forward.f90, dcbsv_reverse.f90, or both simultaneously using OpenMP with dcbsv_parallel_omp.f90.   The parallel OMP versions can be nearly twice as fast as the non parallel versions depending on the parameters.  There is also a 4-way parallel solver dcbsv_4x4parallel_omp.f90, which is faster in certain problems.</p>
+<p>A fortran 90 module LapackInterface.f90 is included for compatibility with FORTRAN 77. Note that the module only needs to be compiled once and is only needed for LAPACK/BLAS compatibility.</p>
+<p>Band matrices are defined per LAPACK convention <a href="https://www.netlib.org/lapack/lug/node124.html">https://www.netlib.org/lapack/lug/node124.html</a> for non-periodic matrices where the <strong>columns</strong> of the full matrix are the columns of the banded form while the rows of the banded form are the diagonals of the full matrix.  For periodic banded matrices, the definition of the banded form is similar with the <strong>rows</strong> of the full matrix as the columns of the banded form while the rows of the banded form are the diagonals of the full matrix.  See <a href="https://github.com/mostlyharmlessone/cyclic-banded-matrix/blob/main/band_matrix.pdf">band_matrix.pdf</a></p>
+<p>  The band diagonal storage scheme is illustrated by the following example, when
+  N = 9, KU = 2</p>
+<pre><code> AB(2*KU+2-mod(N+KU+1+i-j,N),i)                  A(i,j)=aij  
+ a18  a29  a31  a42  a53 a64 a75 a86 a97         a11 a12 a13  0   0   0   0 a18  a19
+ a19  a21  a32  a43  a54 a65 a76 a87 a98         a21 a22 a23 a24  0   0   0  0   a29
+ a11  a22  a33  a44  a55 a66 a77 a88 a99         a31 a32 a33 a34 a35  0   0  0    0
+ a12  a23  a34  a45  a56 a67 a78 a89 a91         0   a42 a43 a44 a45 a46  0  0    0
+ a13  a24  a35  a46  a57 a68 a79 a81 a92         0   0   a53 a54 a55 a56 a57 0    0
+                                                 0   0   0   a64 a65 a66 a67 a68  0
+                                                 0   0   0   0   a75 a76 a77 a78 a79
+                                                 a81 0   0   0    0  a86 a87 a88 a89
+                                                 a91 a92 0   0    0   0  a97 a98 a99
+</code></pre><p>A fortran 90 module AB_matrix_fct.f90 to work with the defined periodic banded matrix and their non-cyclic LAPACK counterpart is included.  Note that the modules only need to be compiled once.  The main loops of the algorithms are included as forward_loop.f90 and backward_loop.f90.</p>
+<p>Two simple test programs are included, testme.f90 using full matrix routines as well as the LAPACK banded noncyclic routines dgtsv and dgbsv for comparison and testme_omp.f90 for larger N with a simple tridiagonal solver thomas.f90 for comparison purposes. CityPlots <a href="https://math.nist.gov/MatrixMarket/">https://math.nist.gov/MatrixMarket/</a> of the matrices can be generated with the included Mathematica(R) notebook CityPlot.nb</p>
+<p>Using gfortran/ifort/nvfortran</p>
+<pre><code>non-parallel version, gfortran instructions
+
+gfortran -c LapackInterface.f90 AB_matrix_fct.f90
+gfortran testme.f90 dctsv.f90 dcbsv_forward.f90 dcbsv_reverse.f90 forward_loop.f90 backward_loop.f90 gauss-jordan.f90 -llapack -lblas
+
+parallel versions with OpenMP, different compilers
+
+gfortran -fopenmp -O3 testme_omp.f90 dcbsv_4x4parallel_omp.f90 dcbsv_parallel_omp.f90 dcbsv_forward.f90 dcbsv_reverse.f90 dctsv_parallel_omp.f90 forward_loop.f90 backward_loop.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 -llapack -lblas
+
+ifort -qopenmp -shared-intel testme_omp.f90 dcbsv_parallel_omp.f90 dcbsv_4x4parallel_omp.f90 dcbsv_forward.f90 dcbsv_reverse.f90 dctsv_parallel_omp.f90 forward_loop.f90 backward_loop.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 gauss-jordan.f90 -llapack -lblas
+
+nvfortran -mp testme_omp.f90 dcbsv_parallel_omp.f90 dcbsv_4x4parallel_omp.f90 dcbsv_forward.f90 dcbsv_reverse.f90 dctsv_parallel_omp.f90 forward_loop.f90 backward_loop.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 gauss-jordan.f90 -llapack -lblas
+
+./a.out
+
+Alternatively, 
+  cmake ./    
+  make   
+  ./testme_cyclic 
+  ./testme_cyclic_omp
+</code></pre><p>gfortran is used as the default compiler with cmake, but ifort or nvfortran are easily configured.</p>
+<h2 id="contributing">Contributing</h2>
+<p>Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.</p>
+<p>Please make sure to update tests as appropriate.</p>
+<h2 id="license">License</h2>
+<p><a href="https://github.com/mostlyharmlessone/cyclic-banded-matrix/blob/main/LICENSE">LICENSE</a></p>
+
+        </article>
+    </body>
+</html>
