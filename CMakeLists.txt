@@ -17,9 +17,7 @@ if(CMAKE_Fortran_COMPILER MATCHES "gfortran")
     set(omp "-fopenmp")
     set(NaN "-ffpe-trap=invalid,zero,overflow -finit-real=snan -finit-integer=-99999999")
 #  profiling with gprof 
- #     set(-pg)    
-#  src profiling with gcov -a -b xxx.f90
-#     set(-g -coverage) 
+    set(profile "-pg -g -coverage")
     set(optimize "-O3 -march=native -ffast-math -funroll-loops")    
 endif()
 if(CMAKE_Fortran_COMPILER MATCHES "ifort")
@@ -37,12 +35,13 @@ if(CMAKE_Fortran_COMPILER MATCHES "nvfortran")
     set(omp "-mp")    
 endif()
 
-set(CMAKE_BUILD_TYPE RELEASE) # no debug or bounds check
-#set(CMAKE_BUILD_TYPE DEBUG) #this include debugging with addition of bounds flags as specified below
+#set(CMAKE_BUILD_TYPE RELEASE) # no debug or bounds check
+set(CMAKE_BUILD_TYPE DEBUG) #this include debugging with addition of bounds flags as specified below
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}")
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_RELEASE} ${optimize}")
+#set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_RELEASE} ${optimize}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${omp}")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${profile}")
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${NaN}")
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${type}")
 

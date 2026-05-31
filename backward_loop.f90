@@ -19,7 +19,7 @@
    REAL(wp),INTENT(INOUT) :: UER(2*KU,LR:LU,NRHS)      ! ue is my vectors vj
    
 !  .. Work space ..   
-   REAL(wp) :: A(2*KU,2*KU),AA(2*KU,2*KU),CC(2*KU,NRHS),EE(2*KU,2*KU+NRHS) ! working copies
+   REAL(wp) :: A(2*KU,2*KU),EE(2*KU,2*KU+NRHS) ! ,AA(2*KU,2*KU),CC(2*KU,NRHS)
    INTEGER ::  hh,jj,ipiv(2*KU)
 
 !! BACKWARD       
@@ -39,7 +39,7 @@
     call DGESV(2*KU,2*KU+NRHS,A,2*KU,IPIV,EE,2*KU,INFO) ! overwrites EE into solution 
 !    call GaussJordan( 2*KU, 2*KU+NRHS ,A ,2*KU , EE, 2*KU, INFO )   ! overwrites EE into solution                    
     if (info /= 0) then
-     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
+     CALL XERBLA( 'DCBSV ', INFO )
 !     RETURN
     else
      UDR(:,:,jj)=EE(:,1:2*KU)

@@ -250,7 +250,7 @@
     call DGESV(2*KU+p, NRHS , AAL, 2*KU+p, IPIV, CCL(:,1:NRHS), 2*KU+p, INFO ) ! overwrites CCL
 !    call GaussJordan( 2*KU+p, NRHS, AAL ,2*KU+p, CCL(:,1:NRHS), 2*KU+p, INFO )  ! overwrites CCL        
     if (info /= 0) then        
-     CALL XERBLA( 'DGESV/DCBSV ', INFO )
+     CALL XERBLA( 'DCBSV ', INFO )
      RETURN
     else
     if (p /=0 ) then                     

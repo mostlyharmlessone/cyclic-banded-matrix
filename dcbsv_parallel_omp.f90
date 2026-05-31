@@ -273,7 +273,7 @@
     call DGESV(p,2*KU+NRHS,Cp,p,IPIV,EEK,p,INFO) ! overwrites EEK into solution, overwrites Cp into factors 
 !    call GaussJordan( p,2*KU+NRHS,Cp,p,EEK,p,INFO )   ! overwrites EEK into solution, overwrites Cp into inverse     
     if (info /= 0) then
-     CALL XERBLA( 'DGETRS/DCBSV ', INFO )
+     CALL XERBLA( 'DCBSV ', INFO )
 !     RETURN
     else
 !    Two cases, p < KU or p >= KU (p <=2*KU always since p=mod(N,2*KU))    
@@ -331,7 +331,7 @@
 !    call GaussJordan( 4*KU, NRHS, ACL ,4*KU, CCL(:,1:NRHS), 4*KU, INFO )  ! overwrites CCL
 
     if (info /= 0) then        
-     CALL XERBLA( 'DGESV/DCBSV ', INFO )
+     CALL XERBLA( 'DCBSV ', INFO )
 !     RETURN
     else              
       Bj(:,JJ-1,1:NRHS)=CCL(1:2*KU,1:NRHS)   ! write Bj-1 with RHS z jj-1

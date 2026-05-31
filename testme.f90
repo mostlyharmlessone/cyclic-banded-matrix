@@ -10,7 +10,7 @@
     REAL(wp) :: AB(2*KU+1,n),time_end,time_start ! AB(2*KU+1,n) for dcbsv; ! AB(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: CD(2*KL+KU+1,n)                  ! CD(KL+KU+1+i-j,j) for dgbsv
     REAL(wp) :: a_short(n-1)                     ! truncated a() for dgtsv
-    INTEGER :: i,j,k,INFO,ipiv(n)
+    INTEGER :: i,j,k,INFO,ipiv(n),alloc_error
 
     INTERFACE  
      SUBROUTINE thomas(a,b,c,d,z,n,k) 
@@ -59,9 +59,12 @@
     END INTERFACE
 
 
-    allocate (d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2))
+    allocate (d(n,2),a(n),b(n),c(n),aij(n,n),bij(n,n),cij(n,n),s(n,2),z(n,2),STAT=alloc_error)
+    if (alloc_error .ne. 0) then
+     write(*,*) 'Not enough memory, allocation error',alloc_error
+     stop
+    endif
 !   Copyright (c) 2021   Anthony M de Beus
-    AB=0
 
 !   only runs dctsv.f90 if KU=1
 !   only runs gauss-jordan if N < 500 (gets too slow)
@@ -99,7 +102,8 @@
       s(i,2)=i**2 
      end do      
     endif
-                      
+
+    AB=0                           ! initialize
     d=matmul(aij,s )               ! RHS vectors
     cij=aij                        ! store a copy
 
@@ -235,5 +239,6 @@
       write(*,*) 'solution error',dot_product((s(:,2)-d(:,2)),(s(:,2)-d(:,2)))
      endif
  
+     deallocate (d,a,b,c,aij,bij,cij,s,z)
 
    END PROGRAM testme

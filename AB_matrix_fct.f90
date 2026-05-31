@@ -16,10 +16,10 @@ function multiply(AB,s) result (z)
    KU=(size(AB,1)-1)/2
    n=size(AB,2)
    z=0
-    do j=1,n 
-      do i=1,2*KU+1
-       z(j,:)=z(j,:)+AB(i,j)*s(1+mod(N+i+j-2-KU,N),:)                       
-      end do
+   do j=1,n
+    do i=1,2*KU+1
+     z(j,:)=z(j,:)+AB(i,j)*s(1+mod(N+i+j-2-KU,N),:)
+    end do
    end do
  end function
  

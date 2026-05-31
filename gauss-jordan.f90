@@ -61,7 +61,7 @@
          info = -6
     END IF
     IF( info.NE.0 ) THEN
-       CALL xerbla( 'GAUSSJ ', -info )
+       CALL xerbla( 'GAUSJ ', -info )
        RETURN
     END IF
     

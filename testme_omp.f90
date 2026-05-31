@@ -87,6 +87,8 @@
      END SUBROUTINE DCBSV_4                   
     END INTERFACE  
    
+    write(*,*) 'Setup time...'
+    time_start=omp_get_wtime()
     allocate(AB(2*KU+1,n),CD(2*KL+KU+1,n),d(n,4),a(n),b(n),c(n),s(n,4),dd(n,4),z(n,4),zz(n,4),a_short(n-1),ipiv(n))
 
     AB=0
@@ -131,8 +133,10 @@
     s(1:n,3:4)=s(1:n,1:2)
     s(1:n,3:4) = s( size(s,1):1:-1,3:4)    
     dd=multiply(AB,s)                           ! RHS vectors
-
     d=dd
+
+    time_end=omp_get_wtime()
+    write(*,*) 'time: ',time_end-time_start
 
     IF (KU == 1) then                           ! store tridiagonal matrices in vector format
     a=AB(1,:)
@@ -159,6 +163,10 @@
      do j=1,4
      if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
       max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+      if (max_error > 0.1) then
+       write(*,*) "Node (1-,",n,") Case (1-4), True solution, Computed solution"
+       write(*,*) i,j,s(i,j),d(i,j)
+      end if
      endif
      end do
     end do
@@ -186,6 +194,10 @@
        do j=1,4
        if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
         max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+        if (max_error > 0.1) then
+         write(*,*) "Node (1-,",n,") Case (1-4), True solution, Computed solution"
+         write(*,*) i,j,s(i,j),d(i,j)
+        end if
        endif
        end do
       end do
@@ -215,6 +227,10 @@
        do j=1,4
        if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
         max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+        if (max_error > 0.1) then
+         write(*,*) "Node (1-,",n,") Case (1-4), True solution, Computed solution"
+         write(*,*) i,j,s(i,j),d(i,j)
+        end if
        endif
        end do
       end do
@@ -245,6 +261,12 @@
      do j=1,4
      if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
       max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+
+      if (max_error > 0.1) then
+       write(*,*) "Node (1-,",n,") Case (1-4), True solution, Computed solution"
+       write(*,*) i,j,s(i,j),d(i,j)
+      end if
+
      endif
      end do
     end do
@@ -271,9 +293,10 @@
      do j=1,4
      if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
       max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
-      
-      if (max_error > 0.1 ) then
-       write(*,*) s(i,j),d(i,j)
+
+      if (max_error > 0.1) then
+       write(*,*) "Node (1-,",n,") Case (1-4), True solution, Computed solution"
+       write(*,*) i,j,s(i,j),d(i,j)
       end if
       
      endif
@@ -302,6 +325,12 @@
      do j=1,4
      if (ABS(s(i,j)-d(i,j))/ABS(s(i,j)) > max_error) then 
       max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
+
+      if (max_error > 0.1) then
+       write(*,*) "Node (1-,",n,") Case (1-4), True solution, Computed solution"
+       write(*,*) i,j,s(i,j),d(i,j)
+      end if
+
      endif
      end do
     end do
@@ -330,7 +359,8 @@
       max_error=ABS(s(i,j)-d(i,j))/ABS(s(i,j))
       
       if (max_error > 0.1) then
-       write(*,*) s(i,j),d(i,j)
+       write(*,*) "Node (1-,",n,") Case (1-4), True solution, Computed solution"
+       write(*,*) i,j,s(i,j),d(i,j)
       end if
       
      endif
