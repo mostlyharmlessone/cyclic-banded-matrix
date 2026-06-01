@@ -16,7 +16,7 @@ Removing XERBLA from dctsv.f90 removes the LAPACK/BLAS dependency.
 
 Removing the LAPACK/BLAS dependency in dcbsv requires substitution by intrinsic Fortran array operators instead of LAPACK & BLAS calls (done already by default) and substitution of LAPACK's dgesv.f  & dgetr(fsi).f by another suitable general matrix solver (e.g. the included admittedly slower O(N^3) gauss-jordan.f90), not done by default.  The intrinsic operators and calls to the alternate matrix solver are immediately after their respective commented out LAPACK calls, making it easy to switch.
 
-The algorithm can be run forwards or backwards, with dcbsv_forward.f90, dcbsv_reverse.f90, or both simultaneously using OpenMP with dcbsv_parallel_omp.f90.   The parallel OMP versions can be nearly twice as fast as the non parallel versions depending on the parameters.  There is also a 4-way parallel solver dcbsv_4x4parallel_omp.f90, which is faster in certain problems.
+The algorithm can be run forwards or backwards, with dcbsv_forward.f90, dcbsv_reverse.f90, or both simultaneously using OpenMP with dcbsv_parallel_omp.f90.   The parallel OMP versions can be nearly twice as fast as the non parallel versions depending on the parameters.  There is also a 4-way parallel solver dcbsv_4x4parallel_omp.f90, which might be faster in certain problems, but the speed of the algorithm through the loops is offset by the complexity of the setup of the matrices.
 
 A fortran 90 module LapackInterface.f90 is included for compatibility with FORTRAN 77. Note that the module only needs to be compiled once and is only needed for LAPACK/BLAS compatibility.
 

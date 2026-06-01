@@ -35,13 +35,15 @@ if(CMAKE_Fortran_COMPILER MATCHES "nvfortran")
     set(omp "-mp")    
 endif()
 
-#set(CMAKE_BUILD_TYPE RELEASE) # no debug or bounds check
+set(CMAKE_BUILD_TYPE RELEASE) # no debug or bounds check
 set(CMAKE_BUILD_TYPE DEBUG) #this include debugging with addition of bounds flags as specified below
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}")
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}")
-#set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_RELEASE} ${optimize}")
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${omp}")
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${profile}")
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${dialect}")
+set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${dialect}")
+set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${optimize}")
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${omp}")
+set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${omp}")
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${profile}")
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${NaN}")
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${type}")
 
