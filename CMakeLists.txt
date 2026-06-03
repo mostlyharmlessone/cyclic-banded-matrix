@@ -1,13 +1,96 @@
-cmake_minimum_required(VERSION 3.16)
-cmake_policy(VERSION 3.16)
+cmake_minimum_required(VERSION 3.30)
+cmake_policy(VERSION 3.30)
 
 project(test_cyclic VERSION 0.1.0 LANGUAGES Fortran)
 enable_language(Fortran)
+
+set(CMAKE_SYSTEM Windows)
 
 # pick a compiler, last listed is the one
 set (CMAKE_Fortran_COMPILER "ifort")
 set (CMAKE_Fortran_COMPILER "nvfortran")
 set (CMAKE_Fortran_COMPILER "gfortran")
+
+set(CMAKE_BUILD_TYPE RELEASE) # no debug or bounds check
+#set(CMAKE_BUILD_TYPE DEBUG) #this include debugging with addition of bounds flags as specified below
+
+if (CMAKE_SYSTEM MATCHES Windows)
+
+# toolchain-mingw64.cmake
+  set(CMAKE_SYSTEM_NAME Windows)
+  set(CMAKE_SYSTEM_PROCESSOR x86_64)
+  set(CMAKE_CROSSCOMPILING true)
+  set(CMAKE_SYSTEM_VERSION 10.0)
+
+# specify the cross compiler
+  set (CMAKE_Fortran_COMPILER "x86_64-w64-mingw32-gfortran")
+# set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
+# set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
+# set(CMAKE_RC_COMPILER x86_64-w64-mingw32-windres)
+
+# where is the target environment
+  set(CMAKE_FIND_ROOT_PATH /usr/x86_64-w64-mingw32)
+
+endif()
+
+if(CMAKE_HOST_SYSTEM MATCHES Linux)
+   message(STATUS "Build host runs Linux")
+endif()
+
+# STATIC stuff (Windows)
+set(BUILD_FOR_WIN TRUE)
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+        set(BUILD_FOR_WIN TRUE)
+endif()
+option(STATIC_BUILD "Build a static binary." ${BUILD_FOR_WIN})
+
+if (STATIC_BUILD)
+        set(CMAKE_EXE_LINKER_FLAGS "-static")
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" CONFIG)
+        set(BUILD_SHARED_LIBS OFF)
+endif()
+
+if (STATIC_BUILD AND ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+        # include plugins into static build on windows
+        # (we lack support for static on other platforms right now)
+        set(QT_PLUGINS SvgIcon WindowsIntegration WindowsVistaStyle)
+endif()
+
+if(APPLE)
+  find_package(Freetype REQUIRED)
+  message(STATUS "Found Freetype in ${FREETYPE_INCLUDE_DIRS}")
+endif(APPLE)
+
+if(CMAKE_SYSTEM MATCHES Windows)
+   message(STATUS "Target system is Windows")
+endif()
+
+if(WIN32)
+  set(LIBS glfw3 opengl32 freetype irrKlang)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+elseif(UNIX AND NOT APPLE)
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
+# find_package(OpenGL REQUIRED)
+  if ( OPENGL_FOUND )
+  message(STATUS "OPENGL found at ${OPENGL_LIBRARIES}")   
+  add_definitions(${OPENGL_DEFINITIONS})
+ endif()
+#  find_package(X11 REQUIRED)
+  set(LIBS ${GLFW3_LIBRARY} X11 Xrandr Xinerama Xi Xxf86vm Xcursor GL dl pthread freetype )
+  set (CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -ldl")
+elseif(APPLE)
+  INCLUDE_DIRECTORIES(/System/Library/Frameworks)
+  FIND_LIBRARY(COCOA_LIBRARY Cocoa)
+  FIND_LIBRARY(OpenGL_LIBRARY OpenGL)
+  FIND_LIBRARY(IOKit_LIBRARY IOKit)
+  FIND_LIBRARY(CoreVideo_LIBRARY CoreVideo)
+  MARK_AS_ADVANCED(COCOA_LIBRARY OpenGL_LIBRARY)
+  SET(APPLE_LIBS ${COCOA_LIBRARY} ${IOKit_LIBRARY} ${OpenGL_LIBRARY} ${CoreVideo_LIBRARY})
+  SET(APPLE_LIBS ${APPLE_LIBS} ${GLFW3_LIBRARY} ${FREETYPE_LIBRARIES})
+  set(LIBS ${LIBS} ${APPLE_LIBS})
+else()
+  set(LIBS )
+endif(WIN32)
 
 # should read again how to manage compiler flags with Cmake
 if(CMAKE_Fortran_COMPILER MATCHES "gfortran")
@@ -35,8 +118,6 @@ if(CMAKE_Fortran_COMPILER MATCHES "nvfortran")
     set(omp "-mp")    
 endif()
 
-set(CMAKE_BUILD_TYPE RELEASE) # no debug or bounds check
-set(CMAKE_BUILD_TYPE DEBUG) #this include debugging with addition of bounds flags as specified below
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}")
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${dialect}")
 set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${dialect}")
@@ -56,19 +137,36 @@ list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 find_package(BLAS)
- if ( BLAS_FOUND )
+ if (BLAS_FOUND )
   message(STATUS "BLAS found at ${BLAS_LIBRARIES}")
  else()
-  set(BLAS_LIBRARIES "/usr/local/lib/libblas.so")
+#  set(BLAS_LIBRARIES "/usr/local/lib/libblas.so")
+  set(BLAS_LIBRARIES "/usr/x86_64-w64-mingw32/lib/libblas.a")
+  set(BLAS_FOUND TRUE)
  endif()
 find_package(LAPACK)
- if ( LAPACK_FOUND )
+ if (LAPACK_FOUND)
   message(STATUS "LAPACK found at ${LAPACK_LIBRARIES}")
  else()
-  set(LAPACK_LIBRARIES "/usr/lib/i386-linux-gnu/lapack/liblapack.so.3")
+#  set(LAPACK_LIBRARIES "/usr/lib/i386-linux-gnu/lapack/liblapack.so")
+  set(LAPACK_LIBRARIES "/usr/x86_64-w64-mingw32/lib/liblapack.a")
+  set(LAPACK_FOUND TRUE)
  endif()
 find_package(OpenMP)
-
+if (OpenMP_FOUND)
+ message(STATUS "OpenMP_CXX found at ${OpenMP_CXX_LIBRARIES}")
+ message(STATUS "OpenMP_C found at ${OpenMP_C_LIBRARIES}")
+ message(STATUS "OpenMP_Fortran found at ${OpenMP_Fortran_LIBRARIES}")
+ message(STATUS "OpenMP_CXX_FLAGS found at ${OpenMP_CXX_FLAGS}")
+ message(STATUS "OpenMP_C_FLAGS found at ${OpenMP_C_FLAGS}")
+ message(STATUS "OpenMP_Fortran_FLAGS found at ${OpenMP_Fortran_FLAGS}")
+else()
+#  set(OpenMP_LIBRARIES "/usr/lib/i386-linux-gnu/lapack/libgomp.so")
+  set(OpenMP_LIBRARIES "/usr/x86_64-w64-mingw32/lib/libgomp.a;/usr/x86_64-w64-mingw32/lib/libpthread.a")
+  set(OpenMP_Fortran_FLAGS "-fopenmp")
+  set(OpenMP_Fortran_LIB_NAMES "/usr/x86_64-w64-mingw32/lib/libgomp.a;/usr/x86_64-w64-mingw32/lib/libpthread.a")
+  set(OpenMP_Fortran_FOUND TRUE)
+endif()
 # Compile.
 
 #   Fortran Source

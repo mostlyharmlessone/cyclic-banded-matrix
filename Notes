@@ -1,3 +1,8 @@
+Notes on the 2026 update
+
+XERBLA/Lapack calls have had their character arguments capped at length 6
+profiling done on 4x4 shows a significant slowdown owing to complexity of the matrix setup.
+
 Notes on the 2023 update.
 
 Since 2021 there has been some code clean up, with one or two bug fixes.  
