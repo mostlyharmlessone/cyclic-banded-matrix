@@ -2,6 +2,7 @@ Notes on the 2026 update
 
 XERBLA/Lapack calls have had their character arguments capped at length 6
 profiling done on 4x4 shows a significant slowdown owing to complexity of the matrix setup.
+CmakeLists.txt now supports building/cross-compiling for Windows using Mingw
 
 Notes on the 2023 update.
 
