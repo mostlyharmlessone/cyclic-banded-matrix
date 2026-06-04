@@ -41,14 +41,29 @@ A fortran 90 module AB_matrix_fct.f90 to work with the defined periodic banded m
  
 Two simple test programs are included, testme.f90 using full matrix routines as well as the LAPACK banded noncyclic routines dgtsv and dgbsv for comparison and testme_omp.f90 for larger N with a simple tridiagonal solver thomas.f90 for comparison purposes. CityPlots https://math.nist.gov/MatrixMarket/ of the matrices can be generated with the included Mathematica(R) notebook CityPlot.nb
 
-Using gfortran/ifort/nvfortran
 ```
-non-parallel version, gfortran instructions
+cmake is the easiest way to make the test programs, the default is to make Linux dynamically linked execuatbles, with the added benefit that if you want to generate static Windows(R)/MingW executables, it is easy to edit CMakeLists.txt, changing the lines that say this: 
+#set(CMAKE_SYSTEM Windows)
+set(CMAKE_SYSTEM UNIX) 
+to this:
+set(CMAKE_SYSTEM Windows)
+#set(CMAKE_SYSTEM UNIX)
+for cross-compiling support. CMakeLists.txt assumes you've got the cross-compiling tools under /usr/x86_64-w64-mingw32, and you've already compiled static versions of OpenMP, LAPACK and BLAS, in /usr/lib. Obviously if you want a static version under Linux, or a dynamic version under MingW, changes will have to be made in CMakeLists.txt 
+
+  cmake ./    
+  make  
+  Executables:
+  ./testme_cyclic (or testme_cyclic.exe)
+  ./testme_cyclic_omp (or testme_cyclic_omp.exe)
+  
+Alternatively, you can do it manually without cmake (some examples below, only for dynamic Linux build)
+
+non-parallel version, gfortran instructions:
 
 gfortran -c LapackInterface.f90 AB_matrix_fct.f90
 gfortran testme.f90 dctsv.f90 dcbsv_forward.f90 dcbsv_reverse.f90 forward_loop.f90 backward_loop.f90 gauss-jordan.f90 -llapack -lblas
 
-parallel versions with OpenMP, different compilers
+parallel versions with OpenMP, different compilers:
 
 gfortran -fopenmp -O3 testme_omp.f90 dcbsv_4x4parallel_omp.f90 dcbsv_parallel_omp.f90 dcbsv_forward.f90 dcbsv_reverse.f90 dctsv_parallel_omp.f90 forward_loop.f90 backward_loop.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 -llapack -lblas
 
@@ -56,13 +71,9 @@ ifort -qopenmp -shared-intel testme_omp.f90 dcbsv_parallel_omp.f90 dcbsv_4x4para
 
 nvfortran -mp testme_omp.f90 dcbsv_parallel_omp.f90 dcbsv_4x4parallel_omp.f90 dcbsv_forward.f90 dcbsv_reverse.f90 dctsv_parallel_omp.f90 forward_loop.f90 backward_loop.f90 thomas.f90 LapackInterface.f90 AB_matrix_fct.f90 gauss-jordan.f90 -llapack -lblas
 
-./a.out
+Executable:
 
-Alternatively, 
-  cmake ./    
-  make   
-  ./testme_cyclic 
-  ./testme_cyclic_omp
+./a.out
 ```
 
 gfortran is used as the default compiler with cmake, but ifort or nvfortran are easily configured.

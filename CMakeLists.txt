@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.30)
 cmake_policy(VERSION 3.30)
 
-project(test_cyclic VERSION 0.1.0 LANGUAGES Fortran)
+project(test_cyclic VERSION 0.2.0 LANGUAGES Fortran)
 enable_language(Fortran)
 
 #set(CMAKE_SYSTEM Windows)
