@@ -207,12 +207,23 @@ endif()
 
     set(LIBS modules ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} )
 
+if (CMAKE_SYSTEM MATCHES Windows)
+
     add_executable(test_cyclic_omp testme_omp.f90 test.o)                                                         
     target_link_libraries(test_cyclic_omp source_omp ${LIBS} )
 
     add_executable(test_cyclic testme.f90 test.o)                                                        
     target_link_libraries(test_cyclic source ${LIBS} )
 
+else()
+
+    add_executable(test_cyclic_omp testme_omp.f90 )                                                         
+    target_link_libraries(test_cyclic_omp source_omp ${LIBS} )
+
+    add_executable(test_cyclic testme.f90 )                                                        
+    target_link_libraries(test_cyclic source ${LIBS} )
+
+endif()
       
 
 
